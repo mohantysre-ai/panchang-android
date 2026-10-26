@@ -939,6 +939,8 @@ const BROWSER_LANG_STATE = {
   bn: "WB", as: "AS", pa: "PB", gu: "GJ", ml: "KL",
 };
 const STATE_STORAGE_KEY = "panchang-state-code";
+const LOC_LAT_KEY = "panchang-loc-lat";
+const LOC_LON_KEY = "panchang-loc-lon";
 
 function browserLocaleState() {
   const code = String(navigator.languages?.[0] || navigator.language || "hi")
@@ -963,44 +965,99 @@ function setStateCode(code) {
   return true;
 }
 
-async function applyAutomaticLocale() {
-  const fallbackState = "KA";
-  let resolvedState = null;
+function savedStateCode() {
+  try {
+    const saved = localStorage.getItem(STATE_STORAGE_KEY);
+    return saved && I.stateLang[saved] ? saved : null;
+  } catch (_) { return null; }
+}
 
-  if (navigator.geolocation) {
+/**
+ * Apply the persisted state (and any previously resolved coordinates)
+ * BEFORE first paint. First-ever runs seed from the device language —
+ * never from the hard-coded Bengaluru defaults, which forced every fresh
+ * install onto Karnataka.
+ */
+function restoreSavedState() {
+  const saved = savedStateCode();
+  if (saved) {
+    $("state").value = saved;
     try {
-      const position = await new Promise((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: false, timeout: 6000, maximumAge: 3600000,
-        })
-      );
-      const { latitude, longitude } = position.coords;
-      // Coarsen to ~2 decimal places (~1.1 km) before storing or sending —
-      // the app never keeps or transmits the exact GPS position.
-      const lat = latitude.toFixed(2);
-      const lon = longitude.toFixed(2);
+      const lat = localStorage.getItem(LOC_LAT_KEY);
+      const lon = localStorage.getItem(LOC_LON_KEY);
+      if (lat && lon) { $("lat").value = lat; $("lon").value = lon; }
+    } catch (_) {}
+    return true;
+  }
+  return setStateCode(browserLocaleState());
+}
+
+function getPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error("geolocation unavailable"));
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 15000,
+      maximumAge: 600000,
+    });
+  });
+}
+
+/**
+ * GPS -> nearest-state resolution. Returns the state code or null.
+ * Deliberately does NOT fall back to resolving the hard-coded default
+ * coordinates: the previous chain did that, and because the defaults are
+ * Bengaluru, every launch without a GPS fix (e.g. while the runtime
+ * permission dialog is still up) resolved to KA and overwrote the user's
+ * saved state.
+ */
+async function detectLocationState() {
+  try {
+    const position = await getPosition();
+    const { latitude, longitude } = position.coords;
+    // Coarsen to ~2 decimal places (~1.1 km) before storing or sending —
+    // the app never keeps or transmits the exact GPS position.
+    const lat = latitude.toFixed(2);
+    const lon = longitude.toFixed(2);
+    const code = await resolveStateFromCoords(lat, lon);
+    if (code) {
       $("lat").value = lat;
       $("lon").value = lon;
-      resolvedState = await resolveStateFromCoords(lat, lon);
-    } catch (_) { /* fall through to coord / saved fallback */ }
-  }
-
-  if (!resolvedState) {
-    try {
-      resolvedState = await resolveStateFromCoords($("lat").value, $("lon").value);
-    } catch (_) { /* fall through */ }
-  }
-
-  if (!resolvedState) {
-    try {
-      const saved = localStorage.getItem(STATE_STORAGE_KEY);
-      if (saved && I.stateLang[saved]) resolvedState = saved;
-    } catch (_) {}
-  }
-
-  setStateCode(resolvedState || fallbackState);
-  $("lang").value = lang();
+      try {
+        localStorage.setItem(LOC_LAT_KEY, lat);
+        localStorage.setItem(LOC_LON_KEY, lon);
+      } catch (_) {}
+      return code;
+    }
+  } catch (_) { /* permission denied, timeout or resolver failure */ }
+  return null;
 }
+
+/**
+ * Background refinement pass: detect the real state and switch over ONLY
+ * when it differs from what is already on screen. Runs after the first
+ * content render so GPS + the permission dialog never gate cold start.
+ */
+async function refineLocation() {
+  const detected = await detectLocationState();
+  const target = detected || savedStateCode() || browserLocaleState() || "KA";
+  if (target === $("state").value) return;
+  setStateCode(target);
+  $("lang").value = lang();
+  applyChrome();
+  await loadMonthGrid();
+  await loadAll();
+}
+
+/**
+ * Called by the native side when the Android runtime location permission
+ * transitions to granted. The very first getCurrentPosition can fail while
+ * the permission dialog is still showing; this re-runs detection so the
+ * user lands on the correct state without restarting the app.
+ */
+window.__onLocationPermissionGranted = function () {
+  refineLocation();
+};
 function ui() { return I.ui[lang()] || I.ui.hi; }
 function N(value) {
   // Convert Western digits → regional script digits (never leave English 0-9 in UI copy).
@@ -2128,10 +2185,16 @@ $("date").addEventListener("change", async () => {
   await loadAll();
 });
 async function initializeApp() {
-  await applyAutomaticLocale();
+  // Paint the saved context IMMEDIATELY — location detection must never
+  // gate the first render (it waits on GPS + the runtime permission
+  // dialog, which used to stall cold start by many seconds).
+  restoreSavedState();
   applyChrome();
   syncDateDisplay();
   await loadAll();
+  // Refine to the detected state in the background; reloads only if the
+  // detected state differs from what is already on screen.
+  refineLocation();
 }
 let lastMobileLayout = isMobile();
 window.addEventListener("resize", () => {
