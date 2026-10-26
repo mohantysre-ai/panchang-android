@@ -16,9 +16,10 @@
     today: svg('<circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2M12 19.6v2M2.4 12h2M19.6 12h2M4.8 4.8l1.5 1.5M17.7 17.7l1.5 1.5M4.8 19.2l1.5-1.5M17.7 6.3l1.5-1.5"/>'),
     fest: svg('<path d="M12 2.8c2.1 3.1 5.2 4.4 5.2 8.2a5.2 5.2 0 0 1-10.4 0c0-3.8 3.1-5.1 5.2-8.2z"/><path d="M8.5 20.8h7"/>'),
     rashi: svg('<path d="M12 2.6l2.6 5.6 6 .7-4.5 4.1 1.3 5.9L12 15.8 6.6 18.9l1.3-5.9-4.5-4.1 6-.7L12 2.6z"/>'),
+    tools: svg('<rect x="3.4" y="3.4" width="7.2" height="7.2" rx="1.8"/><rect x="13.4" y="3.4" width="7.2" height="7.2" rx="1.8"/><rect x="3.4" y="13.4" width="7.2" height="7.2" rx="1.8"/><rect x="13.4" y="13.4" width="7.2" height="7.2" rx="1.8"/>'),
     more: svg('<circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>', true),
   };
-  const VIEW_BY_TARGET = { calendarPanel: "cal", hero: "today", r: "fest", h: "rashi" };
+  const VIEW_BY_TARGET = { calendarPanel: "cal", hero: "today", r: "fest", h: "rashi", toolsScreen: "tools" };
 
   function currentLang() {
     const code = document.getElementById("state")?.value;
@@ -109,6 +110,7 @@
       [ICONS.today, t("nav_today"), "hero"],
       [ICONS.fest, t("nav_festivals"), "r"],
       [ICONS.rashi, t("nav_rashifal"), "h"],
+      [ICONS.tools, t("nav_more"), "toolsScreen"],
     ];
   }
 
@@ -153,9 +155,6 @@
         : `<span class="icon">${item[0]}</span>${esc(item[1])}`;
     });
 
-    const moreBtn = root.querySelector('.shell-bottom [data-action="more"]');
-    if (moreBtn) moreBtn.innerHTML = `<span class="bi">${ICONS.more}</span>${esc(t("nav_more"))}`;
-
     // Keep the bottom bar's active pill in sync with the visible screen.
     const currentView = document.body.dataset.view || "today";
     root.querySelectorAll(".shell-bottom [data-target]").forEach((btn) => {
@@ -180,8 +179,6 @@
     root.querySelectorAll("[data-target]").forEach((b) => {
       b.onclick = () => go(b.dataset.target);
     });
-    const moreBtn = root.querySelector('[data-action="more"]');
-    if (moreBtn) moreBtn.onclick = () => { localizeShell(); open(); };
     root.querySelector('[data-action="state"]').onclick = () => {
       close();
       document.getElementById("state")?.focus();
@@ -261,7 +258,7 @@
   <button type="button" data-target="hero"></button>
   <button type="button" data-target="r"></button>
   <button type="button" data-target="h"></button>
-  <button type="button" data-action="more" aria-label="more"></button>
+  <button type="button" data-target="toolsScreen" aria-label="tools"></button>
 </nav>`;
 
     document.body.appendChild(d);

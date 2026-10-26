@@ -65,3 +65,28 @@ changing web sources run `npm run mobile:sync` there, then replace
 > Bump `versionCode` (env `ANDROID_VERSION_CODE`) before uploading a new
 > release build to Google Play — Play rejects version codes that were
 > already used.
+
+## v3.3.0 — Daily Sadhana engagement pack
+
+New in this release (all offline, all languages):
+
+- **Live-Now tracker** on the Today tab: current choghadiya (day/night) with
+  live countdown, Rahu Kaal / Abhijit / Brahma Muhurta badges (active or
+  time-to-start), tithi progress bar, Panchak status.
+- **नित्य दर्शन streak** — daily check-in with milestones (7/21/108/365) and
+  sadhana completion state.
+- **Gita verse of the day** — 30 curated verses, rotating daily, shareable.
+- **Tools tab (और)** — new 5th bottom-tab hub:
+  - जप माला: 108-bead tap counter with per-mantra history, haptics and mala
+    completion celebration (10 mantras, persisted).
+  - आरती/चालीसा: offline library (full Hanuman Chalisa, Om Jai Jagdish,
+    Sukhkarta Dukhharta, Om Jai Lakshmi Mata, Shiva upasana, Gayatri,
+    Mahamrityunjaya) with day-wise suggestion.
+  - व्रत सूची: upcoming vratas (Ekadashi, Pradosh, Chaturthi, Sankranti…)
+    from the festival engine.
+  - **विश्व पंचांग (diaspora mode)**: 20 world cities — New York, London,
+    Dubai, Singapore, Sydney, Toronto, Kathmandu, Mauritius, Fiji… with
+    correct local sunrise/sunset, choghadiya and muhurta timings while
+    keeping the home regional calendar.
+- **Accuracy fix**: manually selected states now use correct state
+  coordinates for sunrise/sunset instead of stale defaults.

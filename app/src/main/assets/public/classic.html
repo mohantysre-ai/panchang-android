@@ -851,7 +851,7 @@ body.theme-light .fest-row.cat-major{background:rgba(255,236,190,.55)}
   .sheet{position:static;display:none !important}
 }
 </style>
-<link rel="stylesheet" href="/regional-ui.css"><link rel="stylesheet" href="/app-shell.css"><script defer src="/share-card.js"></script><script defer src="/live-activity.js"></script><script defer src="/classic-extras.js"></script><script defer src="/regional-ui.js"></script><script defer src="/app-shell.js"></script><script defer src="/launch-enhancements.js"></script></head>
+<link rel="stylesheet" href="/regional-ui.css"><link rel="stylesheet" href="/app-shell.css"><link rel="stylesheet" href="/sadhana.css"><script defer src="/share-card.js"></script><script defer src="/live-activity.js"></script><script defer src="/classic-extras.js"></script><script defer src="/regional-ui.js"></script><script defer src="/app-shell.js"></script><script defer src="/launch-enhancements.js"></script><script defer src="/sadhana-i18n.js"></script><script defer src="/sadhana-gita.js"></script><script defer src="/sadhana-aarti.js"></script><script defer src="/sadhana-content.js"></script><script defer src="/sadhana-core.js"></script><script defer src="/sadhana-tools.js"></script></head>
 <body data-view="today">
 <div id="bgArt"></div>
 <div class="app">
@@ -912,6 +912,7 @@ body.theme-light .fest-row.cat-major{background:rgba(255,236,190,.55)}
         <div class="hero-meta" id="heroMeta"></div>
         <div class="status-pill" id="status"></div>
       </section>
+      <section id="sadhanaToday"></section>
       <section class="glass" style="padding:12px;margin-bottom:12px" id="hoursWrap">
         <div class="section-title" id="hoursTitle"></div>
         <div class="h-scroll" id="hours"></div>
@@ -920,6 +921,7 @@ body.theme-light .fest-row.cat-major{background:rgba(255,236,190,.55)}
       <section id="muhuratList"></section>
       <section id="r"></section>
       <section id="h"></section>
+      <section class="tools-screen" id="toolsScreen"></section>
       <p class="brand-foot" id="subtitle"></p>
     </div>
   </div>
@@ -955,6 +957,11 @@ function lang() {
   return I.stateLang[$("state").value] || "kn";
 }
 
+/** Active timezone: diaspora city mode overrides IST. */
+function activeTz() {
+  return (window.__worldCity && window.__worldCity.tz) || "Asia/Kolkata";
+}
+
 const BROWSER_LANG_STATE = {
   hi: "UP", kn: "KA", ta: "TN", te: "TS", mr: "MH", or: "OD",
   bn: "WB", as: "AS", pa: "PB", gu: "GJ", ml: "KL",
@@ -962,6 +969,23 @@ const BROWSER_LANG_STATE = {
 const STATE_STORAGE_KEY = "panchang-state-code";
 const LOC_LAT_KEY = "panchang-loc-lat";
 const LOC_LON_KEY = "panchang-loc-lon";
+
+/** State centroids — manual state picks must NOT keep stale Bengaluru coords. */
+const STATE_COORDS = {
+  AP: [15.9129, 79.74], AS: [26.2006, 92.9376], BR: [25.0961, 85.3131], CG: [21.2787, 81.8661],
+  GA: [15.2993, 74.124], GJ: [22.2587, 71.1924], HR: [29.0588, 76.0856], HP: [31.1048, 77.1734],
+  JH: [23.6102, 85.2799], JK: [33.7782, 76.5762], KA: [15.3173, 75.7139], KL: [10.8505, 76.2711],
+  MP: [22.9734, 78.6569], MH: [19.7515, 75.7139], OD: [20.9517, 85.0985], PB: [31.1471, 75.3412],
+  RJ: [27.0238, 74.2179], TN: [11.1271, 78.6569], TS: [17.9784, 79.5941], UK: [30.0668, 79.0193],
+  UP: [26.8467, 80.9462], WB: [22.9868, 87.855], DL: [28.7041, 77.1025], TR: [23.9408, 91.9882],
+  ML: [25.467, 91.3662], MN: [24.6637, 93.9063], NL: [26.1584, 94.5624], MZ: [23.1645, 92.9376],
+  SK: [27.533, 88.5122], AR: [28.218, 94.7278],
+};
+function syncStateCoords() {
+  if (window.__worldCity) return;
+  const c = STATE_COORDS[$("state").value];
+  if (c) { $("lat").value = String(c[0]); $("lon").value = String(c[1]); }
+}
 
 function browserLocaleState() {
   const code = String(navigator.languages?.[0] || navigator.language || "hi")
@@ -1007,10 +1031,13 @@ function restoreSavedState() {
       const lat = localStorage.getItem(LOC_LAT_KEY);
       const lon = localStorage.getItem(LOC_LON_KEY);
       if (lat && lon) { $("lat").value = lat; $("lon").value = lon; }
-    } catch (_) {}
+      else syncStateCoords();
+    } catch (_) { syncStateCoords(); }
     return true;
   }
-  return setStateCode(browserLocaleState());
+  const seeded = setStateCode(browserLocaleState());
+  if (seeded) syncStateCoords();
+  return seeded;
 }
 
 function getPosition() {
@@ -1060,6 +1087,7 @@ async function detectLocationState() {
  * content render so GPS + the permission dialog never gate cold start.
  */
 async function refineLocation() {
+  if (window.__worldCity) return; // diaspora city mode: GPS must not hijack the view
   const detected = await detectLocationState();
   const target = detected || savedStateCode() || browserLocaleState() || "KA";
   if (target === $("state").value) return;
@@ -1122,8 +1150,8 @@ function isMobile() { return window.matchMedia("(max-width: 959px)").matches; }
    The page is split into one screen per tab instead of one long scroll:
    cal → month grid · today → hero/hours/widgets/muhurat · fest · rashi.
    app-shell.js's bottom bar calls window.__setMobileView on tap.        */
-const MOBILE_VIEWS = ["cal", "today", "fest", "rashi"];
-const TARGET_BY_VIEW = { cal: "calendarPanel", today: "hero", fest: "r", rashi: "h" };
+const MOBILE_VIEWS = ["cal", "today", "fest", "rashi", "tools"];
+const TARGET_BY_VIEW = { cal: "calendarPanel", today: "hero", fest: "r", rashi: "h", tools: "toolsScreen" };
 function setView(v) {
   if (!MOBILE_VIEWS.includes(v)) return;
   document.body.dataset.view = v;
@@ -1492,7 +1520,7 @@ async function fetchMonthFestivals(year, month) {
     state_code: $("state").value,
     year: String(year),
     month: String(month),
-    timezone: "Asia/Kolkata",
+    timezone: activeTz(),
     lat: $("lat").value,
     lon: $("lon").value,
   });
@@ -2136,7 +2164,7 @@ async function loadAll() {
       state_code: $("state").value,
       lat: $("lat").value,
       lon: $("lon").value,
-      timezone: "Asia/Kolkata",
+      timezone: activeTz(),
       date_str: dateStr,
       lang: lang(),
     });
@@ -2144,7 +2172,7 @@ async function loadAll() {
       state_code: $("state").value,
       lat: $("lat").value,
       lon: $("lon").value,
-      timezone: "Asia/Kolkata",
+      timezone: activeTz(),
       date_str: dateStr,
     });
     const [p, festDay, festMonthEvents] = await Promise.all([
@@ -2217,6 +2245,7 @@ $("sheetClose").addEventListener("click", closeSheet);
 $("daySheet").addEventListener("click", (e) => { if (e.target.id === "daySheet") closeSheet(); });
 $("state").addEventListener("change", async () => {
   try { localStorage.setItem(STATE_STORAGE_KEY, $("state").value); } catch (_) {}
+  syncStateCoords();
   $("lang").value = lang();
   applyChrome();
   await loadAll();

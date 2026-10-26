@@ -1,0 +1,176 @@
+/**
+ * Daily Sadhana pack styles — cards on the Today screen, Tools hub screen,
+ * tool bottom-sheets, mala ring, aarti reader, vrat list, world grid.
+ * Palette follows the app ink (uses existing --text/--panel-bg/--stroke vars
+ * from classic.html + regional-ui.css).
+ */
+
+/* ---------- view wiring: tools screen + sadhana cards ---------- */
+#toolsScreen{display:none}
+body[data-view="tools"] #toolsScreen{display:block}
+body[data-view="tools"] .desk > aside,
+body[data-view="tools"] #hero,
+body[data-view="tools"] #sadhanaToday,
+body[data-view="tools"] #hoursWrap,
+body[data-view="tools"] #widgets,
+body[data-view="tools"] #muhuratList,
+body[data-view="tools"] #r,
+body[data-view="tools"] #h,
+body[data-view="tools"] #subtitle{display:none}
+body[data-view="cal"] #sadhanaToday,
+body[data-view="fest"] #sadhanaToday,
+body[data-view="rashi"] #sadhanaToday{display:none}
+
+#sadhanaToday{margin-bottom:12px}
+.sd-card{padding:12px 13px;margin-bottom:10px}
+.sd-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sd-card-title{font-weight:800;font-size:.95rem}
+.sd-ref{font-size:.78rem;opacity:.75}
+.sd-ref.big{font-size:.95rem;text-align:center;margin-bottom:8px;font-weight:700}
+.sd-hint{font-size:.8rem;opacity:.7;margin:6px 0}
+.sd-loading{text-align:center;opacity:.6;padding:18px 0}
+
+/* ---------- live now ---------- */
+.sd-live-head{display:flex;align-items:center;gap:8px;font-size:.92rem;margin-bottom:9px}
+.sd-live-dot{width:9px;height:9px;border-radius:50%;background:#43d17c;box-shadow:0 0 0 0 rgba(67,209,124,.5);animation:sdPulse 1.6s infinite}
+@keyframes sdPulse{0%{box-shadow:0 0 0 0 rgba(67,209,124,.45)}70%{box-shadow:0 0 0 9px rgba(67,209,124,0)}100%{box-shadow:0 0 0 0 rgba(67,209,124,0)}}
+.sd-live-clock{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;font-size:1.02rem}
+.sd-slot{border-radius:16px;padding:10px 12px;margin-bottom:9px;border:1px solid var(--stroke,rgba(255,255,255,.14))}
+.sd-slot.good{background:linear-gradient(135deg,rgba(67,209,124,.16),rgba(67,209,124,.05))}
+.sd-slot.bad{background:linear-gradient(135deg,rgba(255,107,107,.14),rgba(255,107,107,.05))}
+.sd-slot-name{font-weight:800;font-size:1.05rem}
+.sd-slot-meta{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;opacity:.85;margin-top:3px}
+.sd-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.sd-badge{font-size:.72rem;font-weight:700;padding:5px 9px;border-radius:999px;border:1px solid var(--stroke,rgba(255,255,255,.16));opacity:.92}
+.sd-badge.g{color:#7ff0ae}
+.sd-badge.b{color:#ff9d9d}
+.sd-badge.past{opacity:.4}
+body.theme-light .sd-badge.g{color:#177a45}
+body.theme-light .sd-badge.b{color:#b3322f}
+.sd-tithi-row{display:flex;justify-content:space-between;font-size:.85rem;font-weight:700;margin-bottom:5px}
+.sd-tithi-bar{height:7px;border-radius:999px;background:rgba(127,127,127,.25);overflow:hidden}
+.sd-tithi-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb457,#ff8a3d);transition:width .6s ease}
+.sd-panchak{margin-top:8px;font-size:.78rem;font-weight:700}
+.sd-panchak.muted{opacity:.5;font-weight:500}
+
+/* ---------- streak ---------- */
+.sd-streak-row{display:flex;align-items:center;gap:11px}
+.sd-flame{font-size:1.7rem;filter:drop-shadow(0 3px 6px rgba(255,140,40,.35))}
+.sd-streak-main{flex:1;min-width:0}
+.sd-streak-main strong{display:block;font-size:1.02rem}
+.sd-streak-main span{display:block;font-size:.76rem;opacity:.75;margin-top:2px}
+.sd-streak-best{font-size:.72rem;font-weight:800;padding:6px 10px;border-radius:12px;background:rgba(255,180,87,.16);white-space:nowrap}
+.sd-done{margin-top:9px;font-size:.8rem;font-weight:700;color:#7ff0ae}
+.sd-done.hint{color:inherit;opacity:.6;font-weight:500}
+body.theme-light .sd-done{color:#177a45}
+
+/* ---------- festival rail ---------- */
+.sd-rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.sd-rail::-webkit-scrollbar{display:none}
+.sd-fest-chip{flex:0 0 auto;min-width:118px;text-align:left;border:1px solid var(--stroke,rgba(255,255,255,.16));background:rgba(127,127,127,.09);color:inherit;border-radius:14px;padding:9px 11px;cursor:pointer;font:inherit}
+.sd-fest-name{display:block;font-weight:700;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.sd-fest-days{display:block;font-size:.72rem;opacity:.75;margin-top:3px}
+.sd-rail-empty{opacity:.5;font-size:.8rem}
+
+/* ---------- gita ---------- */
+.sd-gita-sa{font-size:1.02rem;line-height:1.75;margin:2px 0 8px;font-weight:600}
+.sd-gita-hi{font-size:.84rem;line-height:1.6;opacity:.85;margin:0 0 10px}
+.sd-gita-en{font-size:.8rem;line-height:1.55;opacity:.7;margin:0 0 10px}
+.sd-gita-actions{display:flex;justify-content:flex-end}
+.sd-btn{border:0;border-radius:14px;padding:10px 16px;font:inherit;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,#ffb457,#ff8a3d);color:#2a1503;min-height:42px}
+.sd-btn.ghost{background:rgba(127,127,127,.14);color:inherit}
+
+/* ---------- world chip ---------- */
+.sd-world-chip{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-weight:800;
+  font-size:.85rem;color:inherit;border-radius:16px;padding:10px 13px;cursor:pointer;margin-bottom:10px}
+.sd-world-chip[hidden]{display:none}
+.sd-world-chip .sd-chip-exit{margin-left:auto;font-size:.72rem;opacity:.7}
+
+/* ---------- tools hub ---------- */
+.tools-title{margin:6px 0 12px;font-size:1.05rem}
+.tools-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tool-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:96px;
+  border:1px solid var(--stroke,rgba(255,255,255,.14));border-radius:20px;background:var(--panel-bg);
+  color:inherit;font:inherit;font-weight:800;font-size:.9rem;padding:14px 14px 12px;cursor:pointer;
+  transition:transform .12s ease}
+.tool-card:active{transform:scale(.96)}
+.tc-icon{width:30px;height:30px}
+.tc-icon svg{width:28px;height:28px;display:block}
+
+/* ---------- tool sheet ---------- */
+.tsheet{position:fixed;inset:0;z-index:60;display:none;flex-direction:column;
+  background:rgba(8,12,28,.55);backdrop-filter:blur(8px)}
+.tsheet.open{display:flex}
+.tsheet-panel{margin-top:auto;max-height:92vh;overflow:auto;border-radius:28px 28px 0 0;
+  background:linear-gradient(180deg,rgba(40,60,110,.94),rgba(16,24,48,.97));
+  border:1px solid var(--stroke,rgba(255,255,255,.14));padding:8px 14px 26px;color:var(--text);
+  animation:sdSlideUp .26s ease}
+@keyframes sdSlideUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.tsheet-grab{width:42px;height:5px;border-radius:999px;background:rgba(255,255,255,.35);margin:6px auto 10px}
+.tsheet-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.tsheet-bar strong{font-size:.98rem;flex:1;text-align:center}
+.tsheet-back{height:36px;padding:0 13px;border-radius:12px;border:1px solid var(--stroke,rgba(255,255,255,.2));
+  background:rgba(255,255,255,.14);color:inherit;font:inherit;font-weight:700;cursor:pointer}
+.tsheet-spacer{width:74px}
+@media (min-width:960px){
+  .tsheet{justify-content:center}
+  .tsheet-panel{margin:0 auto;width:min(540px,92vw);border-radius:24px;max-height:84vh}
+}
+body.theme-light .tsheet-panel{background:linear-gradient(180deg,#fffdf8,#f7efe2)}
+
+/* ---------- mala ---------- */
+.sd-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:.8rem;font-weight:700}
+.sd-field select{height:46px;border-radius:14px;border:1px solid var(--stroke,rgba(255,255,255,.2));
+  background:rgba(127,127,127,.12);color:inherit;font:inherit;font-weight:700;padding:0 10px}
+.mala-ring-wrap{position:relative;width:210px;margin:4px auto 12px}
+.mala-ring{width:210px;height:210px;display:block}
+.mala-ring-bg{fill:none;stroke:rgba(127,127,127,.28);stroke-width:7}
+.mala-ring-fg{fill:none;stroke:#ffb457;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .2s ease}
+.mala-bead{position:absolute;inset:0;margin:auto;width:132px;height:132px;border-radius:50%;border:2px solid rgba(255,180,87,.55);
+  background:radial-gradient(circle at 34% 30%,#ffd9a0,#c25e21 72%);color:#3a1c05;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  box-shadow:0 10px 28px rgba(194,94,33,.4), inset 0 2px 8px rgba(255,255,255,.35);
+  transition:transform .08s ease;font-family:inherit}
+.mala-bead:active{transform:scale(.93)}
+.mala-count{font-size:2rem;font-weight:900;line-height:1}
+.mala-of{font-size:.72rem;font-weight:800;opacity:.75}
+.mala-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;text-align:center}
+.mala-stats b{display:block;font-size:1.25rem}
+.mala-stats span{font-size:.7rem;opacity:.7}
+.mala-actions{display:flex;justify-content:center;gap:10px;margin-top:4px}
+
+/* ---------- aarti ---------- */
+.sd-aarti-today{font-size:.85rem;opacity:.9;margin-bottom:10px}
+.sd-aarti-row{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;font:inherit;color:inherit;
+  border:1px solid var(--stroke,rgba(255,255,255,.14));border-radius:16px;background:rgba(127,127,127,.08);
+  padding:11px 13px;margin-bottom:8px;cursor:pointer}
+.sd-aarti-row.today{border-color:#ffb457;background:rgba(255,180,87,.13)}
+.sd-aarti-name{font-weight:800;font-size:.9rem}
+.sd-aarti-sub{font-size:.72rem;opacity:.7}
+.sd-aarti-meta{font-size:.76rem;opacity:.7;margin:0 0 8px}
+.sd-aarti-text{font-family:inherit;white-space:pre-wrap;font-size:.95rem;line-height:1.9;max-height:56vh;overflow:auto;
+  padding:12px;border-radius:16px;background:rgba(127,127,127,.09)}
+.sd-aarti-text.gita{text-align:center;font-size:1.02rem}
+
+/* ---------- vrat ---------- */
+.sd-vrat-row{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;
+  font:inherit;color:inherit;border:1px solid var(--stroke,rgba(255,255,255,.14));border-radius:16px;
+  background:rgba(127,127,127,.08);padding:11px 13px;margin-bottom:8px;cursor:pointer}
+.sd-vrat-name{font-weight:800;font-size:.86rem}
+.sd-vrat-date{font-size:.72rem;opacity:.75;white-space:nowrap}
+
+/* ---------- world ---------- */
+.sd-world-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.sd-world-city{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;font-weight:800;
+  font-size:.82rem;border:1px solid var(--stroke,rgba(255,255,255,.14));border-radius:14px;
+  background:rgba(127,127,127,.08);padding:10px 12px;cursor:pointer}
+.sd-world-city span{font-size:.66rem;opacity:.65;font-weight:600}
+.sd-world-city.active{border-color:#43d17c;background:rgba(67,209,124,.13)}
+
+/* ---------- toast ---------- */
+.sd-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(14px);z-index:120;
+  background:rgba(20,26,44,.94);color:#fff;font-weight:700;font-size:.85rem;padding:11px 18px;border-radius:999px;
+  opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;max-width:86vw;text-align:center}
+.sd-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+body.theme-light .sd-toast{background:rgba(36,26,18,.92)}
