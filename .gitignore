@@ -89,13 +89,20 @@ lint/tmp/
 # Android Profiling
 *.hprof
 
-# Cordova plugins for Capacitor
-capacitor-cordova-android-plugins
+# NOTE — this repository is a STANDALONE Android shell:
+# the Capacitor web bundle (app/src/main/assets/public), the generated
+# Capacitor config files and the capacitor-cordova-android-plugins module are
+# intentionally TRACKED so the project builds in Android Studio without a
+# sibling node_modules web workspace. Regenerate them with `npx cap sync
+# android` after changing web sources (see README.md).
 
-# Copied web assets
-app/src/main/assets/public
+# Cordova plugins for Capacitor — tracked (see note above)
+# capacitor-cordova-android-plugins
 
-# Generated Config files
-app/src/main/assets/capacitor.config.json
-app/src/main/assets/capacitor.plugins.json
-app/src/main/res/xml/config.xml
+# Copied web assets — tracked (see note above)
+# app/src/main/assets/public
+
+# Generated Config files — tracked (see note above)
+# app/src/main/assets/capacitor.config.json
+# app/src/main/assets/capacitor.plugins.json
+# app/src/main/res/xml/config.xml
