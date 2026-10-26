@@ -7,6 +7,19 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
 
+  /* Stroke-style SVG icons for the bottom navigation — crisper and more
+     native-looking than emoji across every Android WebView. */
+  const svg = (path, filled) =>
+    `<svg viewBox="0 0 24 24" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+  const ICONS = {
+    calendar: svg('<rect x="3.2" y="5" width="17.6" height="15.5" rx="3"/><path d="M8 3.2v3.6M16 3.2v3.6M3.2 10.4h17.6M8.2 14h.01M12 14h.01M15.8 14h.01M8.2 17.2h.01M12 17.2h.01"/>'),
+    today: svg('<circle cx="12" cy="12" r="4.1"/><path d="M12 2.4v2M12 19.6v2M2.4 12h2M19.6 12h2M4.8 4.8l1.5 1.5M17.7 17.7l1.5 1.5M4.8 19.2l1.5-1.5M17.7 6.3l1.5-1.5"/>'),
+    fest: svg('<path d="M12 2.8c2.1 3.1 5.2 4.4 5.2 8.2a5.2 5.2 0 0 1-10.4 0c0-3.8 3.1-5.1 5.2-8.2z"/><path d="M8.5 20.8h7"/>'),
+    rashi: svg('<path d="M12 2.6l2.6 5.6 6 .7-4.5 4.1 1.3 5.9L12 15.8 6.6 18.9l1.3-5.9-4.5-4.1 6-.7L12 2.6z"/>'),
+    more: svg('<circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>', true),
+  };
+  const VIEW_BY_TARGET = { calendarPanel: "cal", hero: "today", r: "fest", h: "rashi" };
+
   function currentLang() {
     const code = document.getElementById("state")?.value;
     return (
@@ -23,6 +36,14 @@
   }
 
   function go(id) {
+    // Mobile app shell: bottom tabs SWITCH screens instead of scrolling a
+    // long page — the native behaviour the app was missing.
+    const view = VIEW_BY_TARGET[id];
+    if (view && window.matchMedia("(max-width: 959px)").matches && window.__setMobileView) {
+      window.__setMobileView(view);
+      close();
+      return;
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     close();
   }
@@ -84,10 +105,10 @@
 
   function navItems() {
     return [
-      ["📅", t("nav_panchang"), "calendarPanel"],
-      ["🪔", t("nav_today"), "hero"],
-      ["🕉", t("nav_rashifal"), "h"],
-      ["🎉", t("nav_festivals"), "r"],
+      [ICONS.calendar, t("nav_panchang"), "calendarPanel"],
+      [ICONS.today, t("nav_today"), "hero"],
+      [ICONS.fest, t("nav_festivals"), "r"],
+      [ICONS.rashi, t("nav_rashifal"), "h"],
     ];
   }
 
@@ -132,6 +153,15 @@
         : `<span class="icon">${item[0]}</span>${esc(item[1])}`;
     });
 
+    const moreBtn = root.querySelector('.shell-bottom [data-action="more"]');
+    if (moreBtn) moreBtn.innerHTML = `<span class="bi">${ICONS.more}</span>${esc(t("nav_more"))}`;
+
+    // Keep the bottom bar's active pill in sync with the visible screen.
+    const currentView = document.body.dataset.view || "today";
+    root.querySelectorAll(".shell-bottom [data-target]").forEach((btn) => {
+      btn.classList.toggle("active", (VIEW_BY_TARGET[btn.dataset.target] || "today") === currentView);
+    });
+
     toolItems().forEach(([action, icon, label]) => {
       const btn = root.querySelector(`[data-action="${action}"]`);
       if (!btn) return;
@@ -150,6 +180,8 @@
     root.querySelectorAll("[data-target]").forEach((b) => {
       b.onclick = () => go(b.dataset.target);
     });
+    const moreBtn = root.querySelector('[data-action="more"]');
+    if (moreBtn) moreBtn.onclick = () => { localizeShell(); open(); };
     root.querySelector('[data-action="state"]').onclick = () => {
       close();
       document.getElementById("state")?.focus();
@@ -225,10 +257,11 @@
   </aside>
 </div>
 <nav class="shell-bottom">
-  <button type="button" data-target="calendarPanel" class="active"></button>
+  <button type="button" data-target="calendarPanel"></button>
   <button type="button" data-target="hero"></button>
-  <button type="button" data-target="h"></button>
   <button type="button" data-target="r"></button>
+  <button type="button" data-target="h"></button>
+  <button type="button" data-action="more" aria-label="more"></button>
 </nav>`;
 
     document.body.appendChild(d);

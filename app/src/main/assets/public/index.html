@@ -155,14 +155,16 @@ body::before{
 .app{width:min(480px,100%);margin:0 auto;min-height:100vh;padding:max(10px,env(safe-area-inset-top)) 12px calc(72px + env(safe-area-inset-bottom,0px))}
 @media (max-width:959px){
   .app{
-    padding-top:calc(max(8px, env(safe-area-inset-top)) + 56px);
+    padding-top:calc(max(8px, env(safe-area-inset-top)) + 10px);
     padding-left:max(12px, env(safe-area-inset-left));
     padding-right:max(12px, env(safe-area-inset-right));
+    padding-bottom:calc(104px + env(safe-area-inset-bottom,0px));
   }
+  html,body{overscroll-behavior-y:contain}
   .topbar{
     display:grid;
-    grid-template-columns:1fr 1fr;
-    grid-template-areas:"state state" "date btn";
+    grid-template-columns:1fr;
+    grid-template-areas:"state" "date";
     gap:8px;
     align-items:end;
     padding:10px;
@@ -171,8 +173,34 @@ body::before{
   .topbar .field{flex:none;min-width:0;max-width:100%}
   .topbar .field:has(#state){grid-area:state}
   .topbar .field.date-wrap{grid-area:date;min-width:0;max-width:none}
-  .topbar .field.btn-wrap{grid-area:btn;min-width:0;max-width:none}
+  .topbar .field.btn-wrap{display:none}
   .topbar label{font-size:.65rem;margin-bottom:4px}
+  .topbar .field select,.topbar .date-field{height:46px}
+  /* ---- Native-style view switching: one screen per bottom-nav tab ---- */
+  body[data-view="today"] .desk > aside,
+  body[data-view="today"] #r,
+  body[data-view="today"] #h,
+  body[data-view="today"] #subtitle{display:none}
+  body[data-view="cal"] .desk-main{display:none}
+  body[data-view="fest"] .desk > aside,
+  body[data-view="fest"] #hero,
+  body[data-view="fest"] #hoursWrap,
+  body[data-view="fest"] #widgets,
+  body[data-view="fest"] #muhuratList,
+  body[data-view="fest"] #h,
+  body[data-view="fest"] #subtitle{display:none}
+  body[data-view="rashi"] .desk > aside,
+  body[data-view="rashi"] #hero,
+  body[data-view="rashi"] #hoursWrap,
+  body[data-view="rashi"] #widgets,
+  body[data-view="rashi"] #muhuratList,
+  body[data-view="rashi"] #r,
+  body[data-view="rashi"] #subtitle{display:none}
+  /* Screen-change reveal, native page-push feel */
+  body[data-view] .desk > aside,
+  body[data-view] .desk-main > section{animation:riseIn .3s cubic-bezier(.2,.8,.2,1) both}
+  /* Disable text-selection on chrome for an app feel (content stays selectable) */
+  .topbar,.cal-head,.cal-actions,.shell-bottom,.vaar-rail,.panji-hd{-webkit-user-select:none;user-select:none}
 }
 @media (min-width:960px){
   .app{width:min(1360px,100%);padding:20px 16px 36px}
@@ -683,48 +711,41 @@ body.theme-light .rashi-body .daily-title{color:rgba(26,18,8,.62)}
   background:rgba(8,18,40,.28);
   box-shadow:0 0 0 1px rgba(255,255,255,.08);
 }
+/* ---- Compact on-screen month grid (mobile): 7 columns fill the viewport,
+        details live in the day sheet opened on tap — no horizontal scroll ---- */
 @media (max-width:959px){
-  .panji-wrap.mobile-cal{
-    overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
-    scroll-snap-type:x proximity;padding-bottom:4px;
-  }
+  .panji-wrap.mobile-cal{overflow:visible;padding:5px}
   .panji-grid.cols.mobile-cal{
-    min-width:1064px;
-    grid-template-columns:repeat(7,minmax(152px,1fr));
-  }
-  .panji-grid.rows.mobile-cal{
-    min-width:max(100%,calc(var(--panji-rail,46px) + var(--panji-weeks,6) * 152px));
-    grid-template-columns:var(--panji-rail,40px) repeat(var(--panji-weeks,6),minmax(152px,1fr));
-  }
-  .panji-wrap.mobile-cal::after{
-    content:"← scroll →";display:block;text-align:center;font-size:.62rem;
-    color:var(--cal-muted);opacity:.75;padding:6px 0 2px;letter-spacing:.04em;
+    min-width:0;
+    grid-template-columns:repeat(7,minmax(0,1fr));
   }
   .panji-cell{
-    min-height:200px;padding:7px 6px;
+    min-height:56px;padding:4px 1px 7px;border-radius:9px;
   }
-  .panji-cell .cell-date{gap:3px;padding-bottom:5px}
-  .panji-cell .solar{font-size:.52rem;line-height:1.2}
-  .panji-cell .num{font-size:1.35rem}
-  .panji-cell .lunar-day{font-size:.58rem}
-  .panji-cell .tithi{font-size:.62rem;line-height:1.22}
-  .panji-cell .astro-line{font-size:.58rem;line-height:1.25;gap:4px}
-  .panji-cell .astro-line img{width:14px;height:14px;flex:0 0 14px}
-  .panji-cell .festival-name{
-    font-size:.58rem;line-height:1.28;padding-top:4px;
-    white-space:normal;overflow:visible;text-overflow:unset;
+  .panji-cell .cell-date{display:block;border-bottom:0;padding-bottom:0}
+  .panji-cell .solar,.panji-cell .lunar-day,
+  .panji-cell .astro-line,.panji-cell .festival-name{display:none}
+  .panji-cell .num{font-size:1.04rem;line-height:1.5;text-shadow:none}
+  .panji-cell .tithi{
+    font-size:.5rem;font-weight:700;line-height:1.15;padding:0 1px;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
   }
-  .panji-cell .festival-name img{width:16px;height:16px;display:inline-block}
-  .panji-cell .fest-bg{background-size:min(82%,72px);opacity:.44;background-position:center 30%}
-  .panji-hd{font-size:.6rem;padding:7px 2px;white-space:nowrap}
-  .fest-bg{background-size:min(88%,80px)}
+  .panji-cell .fest-bg{display:none}
+  .panji-cell.fest-themed::after{
+    content:"";position:absolute;bottom:4px;left:50%;transform:translateX(-50%);
+    width:5px;height:5px;border-radius:50%;background:#ffc978;
+    box-shadow:0 0 3px rgba(255,201,120,.8);
+  }
+  body.theme-light .panji-cell.fest-themed::after{background:#9c3d24;box-shadow:none}
+  .panji-hd{font-size:.55rem;padding:6px 0;white-space:nowrap}
   .cal-body{padding:8px 8px 12px}
   .legend{display:none}
+  .cal-actions button{height:44px;font-size:.85rem}
 }
 @media (max-width:380px){
-  .panji-grid.cols.mobile-cal{min-width:994px;grid-template-columns:repeat(7,minmax(140px,1fr))}
-  .panji-cell{min-height:188px}
-  .fest-bg{background-size:min(90%,68px);opacity:.48}
+  .panji-cell{min-height:52px}
+  .panji-cell .num{font-size:.96rem}
+  .panji-cell .tithi{font-size:.46rem}
 }
 .panji-cell.fest:not(.fest-themed):not(.selected){background:var(--cal-cell-fest)}
 .panji-cell.fest:not(.fest-themed):not(.selected):hover{background:var(--cal-cell-fest-hover)}
@@ -831,7 +852,7 @@ body.theme-light .fest-row.cat-major{background:rgba(255,236,190,.55)}
 }
 </style>
 <link rel="stylesheet" href="/regional-ui.css"><link rel="stylesheet" href="/app-shell.css"><script defer src="/share-card.js"></script><script defer src="/live-activity.js"></script><script defer src="/classic-extras.js"></script><script defer src="/regional-ui.js"></script><script defer src="/app-shell.js"></script><script defer src="/launch-enhancements.js"></script></head>
-<body>
+<body data-view="today">
 <div id="bgArt"></div>
 <div class="app">
   <div class="topbar glass">
@@ -1096,6 +1117,31 @@ function term(arrOrMap, key, fallback) {
   return v != null && v !== "" ? v : (fallback || "—");
 }
 function isMobile() { return window.matchMedia("(max-width: 959px)").matches; }
+
+/* ---------- Mobile bottom-nav view controller (native app shell) ----------
+   The page is split into one screen per tab instead of one long scroll:
+   cal → month grid · today → hero/hours/widgets/muhurat · fest · rashi.
+   app-shell.js's bottom bar calls window.__setMobileView on tap.        */
+const MOBILE_VIEWS = ["cal", "today", "fest", "rashi"];
+const TARGET_BY_VIEW = { cal: "calendarPanel", today: "hero", fest: "r", rashi: "h" };
+function setView(v) {
+  if (!MOBILE_VIEWS.includes(v)) return;
+  document.body.dataset.view = v;
+  try { localStorage.setItem("panchang-view", v); } catch (_) {}
+  document.querySelectorAll(".shell-bottom [data-target]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.target === TARGET_BY_VIEW[v]);
+  });
+  window.scrollTo(0, 0);
+}
+function initialView() {
+  if (!isMobile()) return "today";
+  try {
+    const saved = localStorage.getItem("panchang-view");
+    if (saved && MOBILE_VIEWS.includes(saved)) return saved;
+  } catch (_) {}
+  return "today";
+}
+window.__setMobileView = setView;
 
 function stateArtUrl(code) {
   // Map territories / missing art packs to the closest available state artwork.
@@ -2185,6 +2231,8 @@ $("date").addEventListener("change", async () => {
   await loadAll();
 });
 async function initializeApp() {
+  // Enter the app on the last-used tab (mobile app-shell) — native feel.
+  setView(initialView());
   // Paint the saved context IMMEDIATELY — location detection must never
   // gate the first render (it waits on GPS + the runtime permission
   // dialog, which used to stall cold start by many seconds).
