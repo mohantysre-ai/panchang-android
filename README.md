@@ -111,3 +111,38 @@ New in this release (all offline, all languages):
   `download` looked dead inside preview iframes / WebView without share
   targets; Web Share is still used first when available).
 - versionName 3.3.1, default versionCode 4.
+
+## v3.4.0 — Viral engagement pack (20+ new daily-use features)
+
+- **Tools-hub click fix (the big one)**: the tool sheet container was created
+  without its `.tsheet` class, so every card tap "did nothing" on device — the
+  sheet content loaded but never became a visible overlay. All 28 tool cards
+  now open a proper bottom sheet with a working back button and scrim.
+- **Tools hub regrouped into 28 cards / 5 localized sections**: पूजा-पाठ,
+  पंचांग, ज्योतिष, दैनिक, सेटिंग्स (all 11 languages).
+- New daily hooks: **Daily Fortune card** (tap-to-reveal, shareable image),
+  **Dharma Quiz** (5 curated questions/day from a 60-question bank with
+  explanations), **Did-you-know facts** (60-fact bank), **Daily challenge**
+  (auto-checked tasks: 27 jap, aarti, fortune, quiz, facts), **God of the day**
+  (Vara devata + mantra + offering).
+- New astro tools (all computed on-device from real lunar longitudes):
+  **Guna Milan** (full Ashtakoota, 36 points, nadi/bhakoot dosha flags),
+  **Naamkaran** (nakshatra-pada syllables), **Birth report** (tithi, nakshatra,
+  yoga, karana, vaar, moon sign for any birth date since 1920), **Numerology**
+  (Mulank/Bhagyank/today), **Moon phase** (illumination % + next
+  Purnima/Amavasya), **Panchak checker** (next 7 days), **Shubh Muhurat
+  finder** (vivah / griha pravesh / purchase / travel / business / namkaran —
+  scans the next 90 days), **Sankranti & eclipse list** (6 months).
+- New content: **Mantra library** (20 mantras with meaning/benefits),
+  **Dwadasha Namavali** (12 names × 8 deities), **Tirtha guide** (12
+  Jyotirlinga + Char Dham + Shakti Peethas), **Festival kathas** (why we
+  celebrate), **Daily devotional wallpaper** (canvas-generated, save/share).
+- Retention mechanics: **12 achievements** with toast unlocks, **lifetime
+  sadhana dashboard** (total jap/aarti/quiz/shares/days), progress bars.
+- **Daily reminders** via @capacitor/local-notifications: 06:30 panchang,
+  20:30 streak nudge, 06:00 vrat-day alerts (auto-scheduled from the festival
+  engine). Toggle in Tools → Settings. Requires one `npm install` in the repo
+  root before the first Gradle sync (new `package.json` added for this).
+- Bug fix: tools now request `date_str` (the offline engine's parameter name);
+  astro tools previously received sample data for non-default dates.
+- versionName 3.4.0, default versionCode 5.

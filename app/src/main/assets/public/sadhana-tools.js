@@ -41,6 +41,9 @@
     if ($("toolSheet")) return;
     const d = document.createElement("div");
     d.id = "toolSheet";
+    /* The .tsheet class is what makes the sheet hidden/display:flex —
+       without it the sheet never overlays and every tool card feels dead. */
+    d.className = "tsheet";
     d.setAttribute("aria-hidden", "true");
     d.innerHTML = `
       <div class="tsheet-scrim"></div>
@@ -305,45 +308,62 @@
   }
 
   /* ===================== tools hub screen ===================== */
+  /* 28 cards in 5 localized groups; viral pack tools come from window.VTOOLS. */
+  const GROUPS = [
+    ["grp_worship", "worship", ["mala", "aarti", "gita", "mantra", "namavali"]],
+    ["grp_panchang", "panchang", ["vrat", "sankranti", "panchak", "muhurat", "world"]],
+    ["grp_astro", "astro", ["milan", "naam", "birth", "numerology", "moon"]],
+    ["grp_daily", "daily", ["fortune", "quiz", "facts", "wallpaper", "tirtha", "stories"]],
+    ["grp_settings", "settings", ["region", "date", "theme", "notif", "achievements", "lifetime", "share"]],
+  ];
+  const TOOL_TITLE_KEY = { achievements: "ach_title", lifetime: "life_title" };
   function renderTools() {
     const scr = $("toolsScreen");
     if (!scr) return;
     scr.dataset.built = "1";
+    const registry = window.VTOOLS || [];
+    const card = (id, icon, label, act) =>
+      `<button type="button" class="tool-card" data-tool="${esc(id)}"${act ? ` data-act="${esc(act)}"` : ""}><span class="tc-icon">${icon}</span>${esc(label)}</button>`;
+    const localCard = (id, icon) => card(id, icon, t(`tool_${id}`));
+    const regById = (id) => registry.find((x) => x.id === id);
+    const sections = GROUPS.map(([gk, gid, ids]) => `
+      <h3 class="tools-grp">${esc(t(gk))}</h3>
+      <div class="tools-grid">
+        ${ids.map((id) => {
+          const reg = regById(id);
+          if (reg) return card(id, reg.icon || TOOLS_ICONS.share, t(TOOL_TITLE_KEY[id] || `tool_${id}`));
+          if (TOOLS_ICONS[id]) return localCard(id, TOOLS_ICONS[id]);
+          if (id === "region") return card(id, TOOLS_ICONS.region, t("tool_region"), "region");
+          if (id === "date") return card(id, TOOLS_ICONS.date, t("tool_date"), "date");
+          if (id === "theme") return card(id, TOOLS_ICONS.theme, t("tool_theme"), "theme");
+          if (id === "share") return card(id, TOOLS_ICONS.share, t("tool_share"), "share");
+          return "";
+        }).join("")}
+      </div>`).join("");
     scr.innerHTML = `
       <h2 class="tools-title">🪔 ${esc(t("tools_title"))}</h2>
-      <div class="tools-grid">
-        <button type="button" class="tool-card" data-tool="mala"><span class="tc-icon">${TOOLS_ICONS.mala}</span>${esc(t("tool_mala"))}</button>
-        <button type="button" class="tool-card" data-tool="aarti"><span class="tc-icon">${TOOLS_ICONS.aarti}</span>${esc(t("tool_aarti"))}</button>
-        <button type="button" class="tool-card" data-tool="gita"><span class="tc-icon">${TOOLS_ICONS.gita}</span>${esc(t("tool_gita"))}</button>
-        <button type="button" class="tool-card" data-tool="vrat"><span class="tc-icon">${TOOLS_ICONS.vrat}</span>${esc(t("tool_vrat"))}</button>
-        <button type="button" class="tool-card" data-tool="world"><span class="tc-icon">${TOOLS_ICONS.world}</span>${esc(t("tool_world"))}</button>
-        <button type="button" class="tool-card" data-act="region"><span class="tc-icon">${TOOLS_ICONS.region}</span>${esc(t("tool_region"))}</button>
-        <button type="button" class="tool-card" data-act="date"><span class="tc-icon">${TOOLS_ICONS.date}</span>${esc(t("tool_date"))}</button>
-        <button type="button" class="tool-card" data-act="theme"><span class="tc-icon">${TOOLS_ICONS.theme}</span>${esc(t("tool_theme"))}</button>
-        <button type="button" class="tool-card" data-act="share"><span class="tc-icon">${TOOLS_ICONS.share}</span>${esc(t("tool_share"))}</button>
-      </div>`;
+      ${sections}`;
     scr.querySelectorAll(".tool-card").forEach((btn) => {
       btn.addEventListener("click", () => {
         const tool = btn.dataset.tool;
-        if (tool) {
-          if (tool === "mala") renderMala();
-          else if (tool === "aarti") renderAartiList();
-          else if (tool === "gita") renderGitaTool();
-          else if (tool === "vrat") renderVrat();
-          else if (tool === "world") renderWorld();
-          return;
-        }
-        const act = btn.dataset.act;
-        if (act === "region") {
+        if (!tool) return;
+        const reg = regById(tool);
+        if (reg) { reg.run?.(); return; }
+        if (tool === "mala") renderMala();
+        else if (tool === "aarti") renderAartiList();
+        else if (tool === "gita") renderGitaTool();
+        else if (tool === "vrat") renderVrat();
+        else if (tool === "world") renderWorld();
+        else if (tool === "region") {
           const el = $("state");
           el?.focus();
           el?.showPicker?.();
-        } else if (act === "date") {
+        } else if (tool === "date") {
           const el = $("date");
           el?.focus();
           el?.showPicker?.();
-        } else if (act === "theme" || act === "share") {
-          document.querySelector(`[data-shell-root] [data-action="${act}"]`)?.click();
+        } else if (tool === "theme" || tool === "share") {
+          document.querySelector(`[data-shell-root] [data-action="${tool}"]`)?.click();
         }
       });
     });
