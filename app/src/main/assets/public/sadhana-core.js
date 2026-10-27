@@ -119,9 +119,10 @@
         return { label, st, good, at: st === "active" ? range.b : range.a };
       };
       const add = (b) => { if (b) out.badges.push(b); };
-      add(badge("राहु काल", parseRange(p.inauspicious_timings?.rahu_kalam), false));
-      add(badge("अभिजीत", parseRange(p.auspicious_timings?.abhijit_muhurat), true));
-      add(badge("ब्रह्म मुहूर्त", sunrise != null ? { a: (sunrise - 96 * 60 + 86400) % 86400, b: (sunrise - 48 * 60 + 86400) % 86400 } : null, true));
+      const U = (k) => { try { return ((window.I18N || {}).ui || {})[lang()]?.[k] || ((window.I18N || {}).ui || {}).hi?.[k] || k; } catch (_) { return k; } };
+      add(badge(U("rahu_kalam"), parseRange(p.inauspicious_timings?.rahu_kalam), false));
+      add(badge(U("abhijit"), parseRange(p.auspicious_timings?.abhijit_muhurat), true));
+      add(badge(U("brahma_muhurat"), sunrise != null ? { a: (sunrise - 96 * 60 + 86400) % 86400, b: (sunrise - 48 * 60 + 86400) % 86400 } : null, true));
       const nkIdx = p.panchang.nakshatra?.index;
       if (nkIdx >= 23 && nkIdx <= 27) {
         let nkName = p.panchang.nakshatra?.name;
@@ -154,7 +155,7 @@
         <span class="sd-live-clock" id="sdClock">${esc(d.nowStr.slice(0, 5))}</span></div>
       ${d.slot ? `<div class="sd-slot ${good ? "good" : "bad"}">
         <div class="sd-slot-name">${esc(slotLabel(d.slot.name))}</div>
-        <div class="sd-slot-meta"><span>${esc(d.slot.kind === "night" ? "🌙" : "☀️")} ${esc(d.slot.kind === "night" ? "रात्रि चोघड़िया" : "दिवस चोघड़िया")}</span>
+        <div class="sd-slot-meta"><span>${esc(d.slot.kind === "night" ? "🌙" : "☀️")} ${esc(d.slot.kind === "night" ? t("chog_night") : t("chog_day"))}</span>
         <span id="sdSlotLeft">${esc(t("ends_in"))} ${esc(fmtDur((d.slot.end - d.now + 86400) % 86400))}</span></div>
       </div>` : ""}
       <div class="sd-badges" id="sdBadges">${d.badges.map((b) => `
@@ -214,9 +215,12 @@
   }
   function praise(st) {
     const c = st.count || 1;
-    const list = /^hi$|^mr$|^kn$|^ta$|^te$|^or$|^bn$|^as$|^gu$|^pa$|^ml$/.test(lang()) ? window.SADHANA_PRAISE.hi : window.SADHANA_PRAISE.en;
     const tier = c >= 365 ? 4 : c >= 108 ? 3 : c >= 21 ? 2 : c >= 7 ? 1 : 0;
-    return list[tier];
+    // Localized praise tier for every app language (Hindi was the old fallback).
+    const localized = t(`streak_praise_${tier}`);
+    if (!/^streak_praise_/.test(localized)) return localized;
+    const list = window.SADHANA_PRAISE?.hi || [];
+    return list[tier] || "";
   }
   function renderStreak() {
     const box = $("streakBox");

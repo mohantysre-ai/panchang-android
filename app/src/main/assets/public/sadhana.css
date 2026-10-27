@@ -174,3 +174,15 @@ body.theme-light .tsheet-panel{background:linear-gradient(180deg,#fffdf8,#f7efe2
   opacity:0;transition:opacity .25s ease,transform .25s ease;pointer-events:none;max-width:86vw;text-align:center}
 .sd-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 body.theme-light .sd-toast{background:rgba(36,26,18,.92)}
+
+/* ---- Share-card preview modal (visible feedback for the share/screenshot button) ---- */
+#shareCardModal{position:fixed;inset:0;z-index:120;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .24s ease}
+#shareCardModal.open{opacity:1;pointer-events:auto}
+.scm-scrim{position:absolute;inset:0;background:rgba(4,8,22,.66);backdrop-filter:blur(6px)}
+.scm-panel{position:relative;z-index:1;width:min(420px,94vw);max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:10px 14px calc(20px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(40,60,110,.96),rgba(16,24,48,.98));border:1px solid rgba(255,255,255,.2);transform:translateY(24px);transition:transform .24s cubic-bezier(.2,.8,.2,1);text-align:center}
+#shareCardModal.open .scm-panel{transform:none}
+.scm-grab{width:42px;height:5px;border-radius:999px;background:rgba(255,255,255,.35);margin:4px auto 10px}
+.scm-img{width:min(300px,78vw);height:auto;border-radius:18px;border:1px solid rgba(212,175,55,.5);box-shadow:0 14px 40px rgba(0,0,0,.4);display:block;margin:0 auto}
+.scm-hint{margin:10px 0 4px;font-size:.76rem;color:rgba(255,255,255,.82)}
+.scm-actions{display:grid;gap:8px;margin-top:8px}
+.scm-save{display:block;text-align:center;padding:12px;border-radius:14px;background:linear-gradient(135deg,#ffc978,#e8913a);color:#2a1500;font-weight:800;text-decoration:none;font-size:.95rem}

@@ -1,7 +1,19 @@
 /**
- * WhatsApp / social share card for classic UI
+ * WhatsApp / social share card for classic UI — fully localized:
+ *   · every label drawn from I18N.ui card_* keys (11 languages)
+ *   · Web Share with file when available; otherwise an in-app preview modal
+ *     with a Save button (the old silent <a download> looked like a dead
+ *     button inside preview iframes and Android WebView without share targets)
  */
 window.generateAndSharePanchangCard = async function generateAndSharePanchangCard(data) {
+  const I = window.I18N || {};
+  const L = data.lang || window.lang?.() || "hi";
+  const ui = I.ui?.[L] || I.ui?.hi || {};
+  const t = (k, fb) => ui[k] || fb;
+  const digits = I.digits?.[L];
+  const N = (v) =>
+    digits ? String(v ?? "").replace(/[0-9]/g, (d) => digits[Number(d)]) : String(v ?? "");
+
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1350;
@@ -23,12 +35,12 @@ window.generateAndSharePanchangCard = async function generateAndSharePanchangCar
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 52px sans-serif";
-  ctx.fillText("DAINIK PANCHANG", 540, 140);
+  ctx.font = "bold 56px serif";
+  ctx.fillText(t("card_title", "दैनिक पंचांग"), 540, 140);
 
   ctx.fillStyle = "#E0E0E0";
   ctx.font = "32px sans-serif";
-  ctx.fillText(`Region: ${data.stateName} | ${data.date}`, 540, 200);
+  ctx.fillText(`${t("card_region", "क्षेत्र")}: ${data.stateName} | ${data.date}`, 540, 200);
 
   ctx.beginPath();
   ctx.moveTo(200, 240);
@@ -48,58 +60,81 @@ window.generateAndSharePanchangCard = async function generateAndSharePanchangCar
   ctx.textAlign = "left";
   let yPos = 370;
   const items = [
-    { label: "Sunrise / Sunset", value: data.sunrise },
-    { label: "Tithi", value: data.tithi },
-    { label: "Nakshatra", value: data.nakshatra },
-    { label: "Rahu Kalam", value: data.rahuKalam },
+    { label: t("card_sun", "सूर्योदय / सूर्यास्त"), value: data.sunrise },
+    { label: t("card_tithi", "तिथि"), value: data.tithi },
+    { label: t("card_nakshatra", "नक्षत्र"), value: data.nakshatra },
+    { label: t("card_rahu", "राहु काल"), value: data.rahuKalam },
   ];
   if (data.festivalToday) {
-    items.unshift({ label: "Festival", value: data.festivalToday });
+    items.unshift({ label: t("card_festival", "त्योहार"), value: data.festivalToday });
   }
   items.forEach((item) => {
     ctx.fillStyle = "#FFC107";
-    ctx.font = "bold 36px sans-serif";
+    ctx.font = "bold 36px serif";
     ctx.fillText(item.label, 150, yPos);
     ctx.fillStyle = "#FFFFFF";
-    ctx.font = "36px sans-serif";
+    ctx.font = "36px serif";
     ctx.fillText(String(item.value || "—"), 150, yPos + 48);
     yPos += 120;
   });
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 38px sans-serif";
-  ctx.fillText("Regional Panchang App", 540, 1150);
+  ctx.font = "bold 38px serif";
+  ctx.fillText(t("brand", "क्षेत्रीय पंचांग"), 540, 1150);
   ctx.fillStyle = "#B0BEC5";
   ctx.font = "28px sans-serif";
-  ctx.fillText("Daily Muhurat, Rashifal & Regional Panji", 540, 1200);
+  ctx.fillText(t("brand_tag", "हर क्षेत्र का पंचांग"), 540, 1200);
 
-  await new Promise((resolve) => {
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        resolve();
-        return;
-      }
-      const file = new File([blob], `Panchang_${String(data.date).replace(/\s+/g, "_")}.png`, {
-        type: "image/png",
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) return;
+  const fileName = `Panchang_${String(data.date).replace(/\s+/g, "_")}.png`;
+  const file = new File([blob], fileName, { type: "image/png" });
+  const url = URL.createObjectURL(blob);
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        title: `${t("card_title", "दैनिक पंचांग")} - ${data.date}`,
+        text: `${data.stateName}: ${data.tithi}`,
+        files: [file],
       });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: `Daily Panchang - ${data.date}`,
-            text: `Today's Panchang for ${data.stateName}: ${data.tithi}`,
-            files: [file],
-          });
-        } catch (_) {
-          /* canceled */
-        }
-      } else {
-        const link = document.createElement("a");
-        link.download = file.name;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-      }
-      resolve();
-    }, "image/png");
-  });
+      URL.revokeObjectURL(url);
+      return;
+    } catch (_) { /* user canceled — fall through to the preview modal */ }
+  }
+  showCardModal({ url, fileName, saveLabel: t("card_save", "सेव करें"), hint: t("card_hint", ""), ready: t("card_ready", ""), lang: L });
 };
+
+/** In-app result sheet — visible feedback in every environment. */
+function showCardModal({ url, fileName, saveLabel, hint, ready, lang }) {
+  document.getElementById("shareCardModal")?.remove();
+  const d = document.createElement("div");
+  d.id = "shareCardModal";
+  d.innerHTML = `
+    <div class="scm-scrim"></div>
+    <div class="scm-panel">
+      <div class="scm-grab"></div>
+      <img class="scm-img" src="${url}" alt="Panchang card">
+      <p class="scm-hint">${hint || ""}</p>
+      <div class="scm-actions">
+        <a class="scm-save" id="scmSave" download="${fileName}" href="${url}">${saveLabel}</a>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+  requestAnimationFrame(() => d.classList.add("open"));
+  const close = () => {
+    d.classList.remove("open");
+    setTimeout(() => {
+      d.remove();
+      // Do NOT revoke immediately — the Save anchor needs the blob alive.
+    }, 260);
+  };
+  d.querySelector(".scm-scrim").addEventListener("click", close);
+  d.addEventListener("click", (e) => {
+    if (e.target === d) close();
+  });
+  d.querySelector("#scmSave").addEventListener("click", () => {
+    setTimeout(close, 600);
+  });
+}

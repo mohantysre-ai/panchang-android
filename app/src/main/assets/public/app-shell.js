@@ -89,17 +89,28 @@
     }
     const stateEl = document.getElementById("state");
     const L = currentLang();
+    const nakLocalized = (() => {
+      const idx = p.panchang?.nakshatra?.index;
+      const arr = window.I18N?.nakshatra?.[L] || window.I18N?.nakshatra?.hi;
+      return (idx && arr?.[idx - 1]) || p.panchang?.nakshatra?.name || "—";
+    })();
     const stateName =
       window.NATIVE_STATE_NAMES?.[stateEl?.value] ||
       (window.I18N?.states?.[L] || {})[stateEl?.value] ||
       stateEl?.value ||
       "";
+    const festToday = (p.today_festivals?.[0] || null);
+    const festName = festToday
+      ? (festToday.names?.[L] || festToday.names?.hi || festToday.names?.en || festToday.id)
+      : null;
     await window.generateAndSharePanchangCard({
+      lang: L,
       date: document.getElementById("heroDate")?.textContent || p.date,
       tithi: document.getElementById("heroMain")?.textContent || p.panchang?.tithi?.name || "—",
-      nakshatra: p.panchang?.nakshatra?.name || "—",
+      nakshatra: nakLocalized,
       sunrise: `${p.panchang?.sunrise || "—"} / ${p.panchang?.sunset || "—"}`,
       rahuKalam: p.inauspicious_timings?.rahu_kalam || "—",
+      festivalToday: festName,
       stateName,
     });
   }

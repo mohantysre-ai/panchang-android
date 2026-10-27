@@ -59,6 +59,9 @@
   }
   function openTool(id, title, html) {
     ensureSheet();
+    // Back label is re-resolved on every open so a language/state switch
+    // never leaves the sheet chrome in a stale language.
+    $("toolBack").textContent = t("aarti_back");
     $("toolTitle").textContent = title;
     $("toolBody").innerHTML = html;
     const sh = $("toolSheet");
@@ -301,10 +304,10 @@
     });
   }
 
-  /* ========================= tools hub screen ========================= */
-  function buildTools() {
+  /* ===================== tools hub screen ===================== */
+  function renderTools() {
     const scr = $("toolsScreen");
-    if (!scr || scr.dataset.built) return;
+    if (!scr) return;
     scr.dataset.built = "1";
     scr.innerHTML = `
       <h2 class="tools-title">🪔 ${esc(t("tools_title"))}</h2>
@@ -344,6 +347,12 @@
         }
       });
     });
+  }
+  /* First paint only — later language/state changes re-render via events. */
+  function buildTools() {
+    const scr = $("toolsScreen");
+    if (!scr || scr.dataset.built) return;
+    renderTools();
   }
 
   /* ========================= boot ========================= */
@@ -389,6 +398,14 @@
       restoreBoot();
       wrapSetView();
       window.addEventListener("panchang:loaded", onLoaded);
+      // applyChrome() fires this on every state/language change — repaint the
+      // hub + any open sheet labels so the tools screen never keeps a stale
+      // language (the original one-shot build froze Kannada for fresh users).
+      window.addEventListener("panchang:chrome", () => {
+        renderTools();
+        const sh = $("toolSheet");
+        if (sh && sh.classList.contains("open")) $("toolBack").textContent = t("aarti_back");
+      });
       // Payload may already be cached (restore path) — paint once immediately.
       if (window.__lastPanchang) onLoaded();
       desktopViewFix();

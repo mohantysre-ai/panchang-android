@@ -196,6 +196,15 @@ body::before{
   body[data-view="rashi"] #muhuratList,
   body[data-view="rashi"] #r,
   body[data-view="rashi"] #subtitle{display:none}
+  /* The tools hub (और tab) is its own screen — never leaked under other
+     tabs, and never stacked behind the rest of the page in tools view. */
+  body[data-view="today"] #toolsScreen,
+  body[data-view="cal"] #toolsScreen,
+  body[data-view="fest"] #toolsScreen,
+  body[data-view="rashi"] #toolsScreen{display:none}
+  body[data-view="tools"] .desk > aside,
+  body[data-view="tools"] .desk-main > section:not(#toolsScreen),
+  body[data-view="tools"] #subtitle{display:none}
   /* Screen-change reveal, native page-push feel */
   body[data-view] .desk > aside,
   body[data-view] .desk-main > section{animation:riseIn .3s cubic-bezier(.2,.8,.2,1) both}
@@ -954,7 +963,9 @@ let lastPayload = null;
 let skyTone = "day";
 
 function lang() {
-  return I.stateLang[$("state").value] || "kn";
+  // Fallback must be the pan-Indian default (Hindi) — the old "kn" fallback
+  // painted fresh installs Kannada whenever the state picker was still empty.
+  return I.stateLang[$("state").value] || "hi";
 }
 
 /** Active timezone: diaspora city mode overrides IST. */
@@ -1089,7 +1100,7 @@ async function detectLocationState() {
 async function refineLocation() {
   if (window.__worldCity) return; // diaspora city mode: GPS must not hijack the view
   const detected = await detectLocationState();
-  const target = detected || savedStateCode() || browserLocaleState() || "KA";
+  const target = detected || savedStateCode() || browserLocaleState() || "UP";
   if (target === $("state").value) return;
   setStateCode(target);
   $("lang").value = lang();
@@ -1320,7 +1331,9 @@ function nativeStateName(code) {
 
 function fillStateOptions() {
   const sel = $("state");
-  const cur = sel.value || "KA";
+  // sel.value is "" until options exist (first launch), so resolve the
+  // intended state from storage/locale instead of silently landing on KA.
+  const cur = sel.value || savedStateCode() || browserLocaleState() || "KA";
   const codes = [
     ...new Set([
       ...Object.keys(window.NATIVE_STATE_NAMES || {}),
@@ -1544,7 +1557,7 @@ function updateUpcomingFestHint(allEvents) {
   }
   const L = lang();
   const u = ui();
-  const name = upcoming.names?.[L] || upcoming.names?.en || upcoming.id;
+  const name = upcoming.names?.[L] || festDisplayName(upcoming) || upcoming.names?.en || upcoming.id;
   const days = daysUntil(upcoming.date);
   let when = `${N(days)} ${u.days || "days"}`;
   if (days === 0) when = u.today || "Today";
@@ -1576,7 +1589,7 @@ function cellHtml(day) {
   const karanaNames = I.karana[L] || I.karana.hi;
   const events = monthFestivalsByDate[day.date] || [];
   const festTitle = events
-    .map((e) => e.names?.[L] || e.names?.en || e.id)
+    .map((e) => festDisplayName(e))
     .filter(Boolean)
     .join(", ");
   const cls = ["panji-cell"];
@@ -1757,12 +1770,16 @@ function applyChrome() {
   if ($("lblDate")) $("lblDate").textContent = u.date || "";
   $("btn").textContent = u.calculate;
   $("sheetClose").textContent = u.complete;
+  const privLink = document.querySelector("#privacyFoot a") || document.querySelector("a[href='/privacy.html']");
+  if (privLink) privLink.textContent = u.privacy_policy || privLink.textContent;
   applyFont();
   fillStateOptions();
   applyStateArt();
   syncDateDisplay();
   loadMonthGrid();
   window.__localizeShell?.();
+  // Sadhana tools hub + drawer rebuild in the active language
+  window.dispatchEvent(new CustomEvent("panchang:chrome"));
 }
 
 function localizePanchang(p) {
@@ -1791,9 +1808,50 @@ function hourCards(list, table, icon) {
   }).join("");
 }
 
+/**
+ * Localized festival name with layered fallbacks:
+ *   names[L] → curated I.festNames[L][id] → composed "<lunar month> <slot>"
+ *   (for monthly vrata ids like amavasya_8 / shukla_ekadashi_3)
+ *   → names.hi → names.en → id.
+ * The composition step also repairs half-translated entries such as
+ * "Chaitra ଏକାଦଶୀ" (Latin prefix left in a regional-script name).
+ */
 function festDisplayName(event) {
   const L = lang();
-  return event?.names?.[L] || event?.names?.en || event?.id || "—";
+  const id = event?.id || "";
+  const names = event?.names || {};
+  const latin = (s) => /[A-Za-z]/.test(String(s || ""));
+  const composed = (() => {
+    try {
+      const months = I.lunarMonths?.[L] || I.lunarMonths?.hi || [];
+      const terms = I.vratTerms?.[L] || I.vratTerms?.hi || {};
+      let slot = null, mi = null;
+      const pickSlot = (k) => {
+        if (!k) return null;
+        if (k.startsWith("shukla_") || k.startsWith("krishna_")) {
+          const pak = k.startsWith("shukla") ? terms.shukla : terms.krishna;
+          const base = terms[k.split("_").slice(1).join("_")];
+          return [pak, base].filter(Boolean).join(" ");
+        }
+        return terms[k] || null;
+      };
+      if (id.startsWith("vrata_")) {
+        slot = pickSlot(id.slice(6));
+      } else if (/_\d+$/.test(id)) {
+        mi = Number(id.slice(id.lastIndexOf("_") + 1));
+        slot = pickSlot(id.slice(0, id.lastIndexOf("_")));
+      }
+      if (!slot) return null;
+      if (mi && months[mi - 1]) return `${months[mi - 1]} ${slot}`;
+      return slot;
+    } catch (_) { return null; }
+  })();
+  const curated = (I.festNames?.[L] || {})[id];
+  const own = names[L];
+  if (own && !(latin(own) && curated)) return own;
+  if (curated) return curated;
+  if (composed && (!own || latin(own))) return composed;
+  return own || names.hi || names.en || id || "—";
 }
 
 function festCategoryLabel(cat) {
@@ -2262,9 +2320,11 @@ $("date").addEventListener("change", async () => {
 async function initializeApp() {
   // Enter the app on the last-used tab (mobile app-shell) — native feel.
   setView(initialView());
-  // Paint the saved context IMMEDIATELY — location detection must never
-  // gate the first render (it waits on GPS + the runtime permission
-  // dialog, which used to stall cold start by many seconds).
+  // Options MUST exist before restoreSavedState() assigns the select value —
+  // on a fresh install the select was empty, the assignment silently failed,
+  // and the app painted Karnataka/Kannada before the background location
+  // refinement corrected it (leaving late-built sections stuck in Kannada).
+  fillStateOptions();
   restoreSavedState();
   applyChrome();
   syncDateDisplay();
@@ -2282,6 +2342,14 @@ window.addEventListener("resize", () => {
   }
 });
 initializeApp();
+
+/* The privacy footer is injected after this script by the build, so it does
+   not exist while applyChrome() first runs — translate it once the DOM is
+   complete (and re-translate with every language change via panchang:chrome). */
+document.addEventListener("DOMContentLoaded", () => {
+  const priv = document.querySelector("#privacyFoot a");
+  if (priv) priv.textContent = ui().privacy_policy || priv.textContent;
+});
 </script>
-<p style="text-align:center;padding-bottom:90px"><a href="/privacy.html">Privacy policy</a></p></body>
+<p id="privacyFoot" style="text-align:center;padding:14px 0 90px"><a href="/privacy.html">Privacy policy</a></p></body>
 </html>
