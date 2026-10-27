@@ -90,3 +90,24 @@ New in this release (all offline, all languages):
     keeping the home regional calendar.
 - **Accuracy fix**: manually selected states now use correct state
   coordinates for sunrise/sunset instead of stale defaults.
+
+## v3.3.1 — Full regional-translation pass (2026-10-27)
+
+- **Fresh-install language race fixed**: state options are populated before
+  the saved state is applied, so a first launch no longer flashes
+  Karnataka/Kannada and the tools screen no longer stays stuck in the wrong
+  language (`lang()` also falls back to Hindi, never Kannada).
+- **More/Tools tab is a real screen**: the tools hub was missing from the
+  view-switch CSS, so it appeared stacked below every other section
+  (infinite-scroll feel). It is now an isolated 5th tab and re-renders on
+  every state/language change.
+- **All 11 languages complete**: festival names (Dhanteras, Kartika
+  Amavasya, all Sankrantis…), monthly vrata names (composed as
+  "lunar month + slot" in regional script), privacy-policy footer, share
+  card, Rahu/Abhijit/Brahma badges, choghadiya day/night label and streak
+  praise tiers now resolve in hi/mr/kn/ta/te/or/bn/as/gu/pa/ml.
+- **Share/screenshot button gives visible feedback**: localized 1080×1350
+  card opens in an in-app preview modal with a Save button (the old silent
+  `download` looked dead inside preview iframes / WebView without share
+  targets; Web Share is still used first when available).
+- versionName 3.3.1, default versionCode 4.
