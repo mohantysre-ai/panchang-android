@@ -1005,13 +1005,26 @@ function browserLocaleState() {
 }
 
 async function resolveStateFromCoords(lat, lon) {
-  const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-  const resolved = await fetch(`/api/v1/location/resolve?${qs}`).then((r) => {
-    if (!r.ok) throw new Error(`location resolver ${r.status}`);
-    return r.json();
-  });
-  const code = resolved.state_code;
-  return code && I.stateLang[code] ? code : null;
+  try {
+    const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+    const r = await fetch(`/api/v1/location/resolve?${qs}`);
+    if (r.ok) {
+      const resolved = await r.json();
+      const code = resolved.state_code;
+      if (code && I.stateLang[code]) return code;
+    }
+  } catch (_) {}
+
+  let nearestState = "UP";
+  let minDistance = Infinity;
+  for (const [code, [sLat, sLon]] of Object.entries(STATE_COORDS)) {
+    const dist = Math.pow(lat - sLat, 2) + Math.pow(lon - sLon, 2);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestState = code;
+    }
+  }
+  return nearestState;
 }
 
 function setStateCode(code) {
