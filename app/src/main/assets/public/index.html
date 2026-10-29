@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><script src="/panchang-engine.js"></script><script>PanchangOffline.installShim();</script>
+<head><script src="/panchang-engine.js"></script><script>PanchangOffline.installShim();const _of=window.fetch;window.fetch=async function(...a){await new Promise(r=>setTimeout(r,0));return _of.apply(this,a)};</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
