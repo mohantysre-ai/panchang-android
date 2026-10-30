@@ -1055,10 +1055,25 @@ function nearestStateByCoords(lat, lon) {
   return nearestState;
 }
 
+/** Check if coordinates are within India's geographical boundaries. */
+function isWithinIndia(lat, lon) {
+  return lat >= 6.0 && lat <= 37.5 && lon >= 68.0 && lon <= 97.5;
+}
+
 async function resolveStateFromCoords(lat, lon) {
+  const numLat = Number(lat);
+  const numLon = Number(lon);
+  // If coordinates are outside India (e.g. Android Emulator default 37.42, -122.08 in Mountain View, CA),
+  // DO NOT geocode to an Indian state — that would absurdly pick JK! Return null so the app stays
+  // on the user's selected/default state without hijacking it.
+  if (!isWithinIndia(numLat, numLon)) {
+    console.log("[Location] Coordinates (" + numLat + ", " + numLon + ") are outside India. Ignoring.");
+    return null;
+  }
+
   // Always compute the offline nearest-centroid answer first — it is used both
   // as a sanity-check against the remote API and as the definitive fallback.
-  const offlineCode = nearestStateByCoords(lat, lon);
+  const offlineCode = nearestStateByCoords(numLat, numLon);
 
   try {
     const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) });
@@ -1075,16 +1090,10 @@ async function resolveStateFromCoords(lat, lon) {
       const resolved = await r.json();
       const apiCode = resolved.state_code;
       if (apiCode && I.stateLang[apiCode]) {
-        // Sanity-check: if the API result's centroid is more than 10 degrees
-        // (squared) away from the GPS fix but the offline answer is much closer,
-        // the API is returning a bogus result (e.g. JK for an Odisha fix).
-        // Reject it and trust the offline centroid instead.
         const [apiLat, apiLon] = STATE_COORDS[apiCode] || [0, 0];
-        const apiDist = Math.pow(lat - apiLat, 2) + Math.pow(lon - apiLon, 2);
+        const apiDist = Math.pow(numLat - apiLat, 2) + Math.pow(numLon - apiLon, 2);
         const [offLat, offLon] = STATE_COORDS[offlineCode] || [0, 0];
-        const offDist = Math.pow(lat - offLat, 2) + Math.pow(lon - offLon, 2);
-        // Accept API result only if it is not absurdly far compared to offline answer.
-        // Factor of 4 means "if API pick is >2x farther than nearest centroid, reject it".
+        const offDist = Math.pow(numLat - offLat, 2) + Math.pow(numLon - offLon, 2);
         if (apiDist <= offDist * 4) return apiCode;
       }
     }
@@ -1115,21 +1124,30 @@ function savedStateCode() {
  */
 function restoreSavedState() {
   const saved = savedStateCode();
+  // Clear persistent J&K poison permanently: J&K was an artifact of an old API glitch.
+  if (saved === "JK") {
+    try {
+      localStorage.removeItem(STATE_STORAGE_KEY);
+      localStorage.removeItem(STATE_MANUAL_KEY);
+      localStorage.removeItem(LOC_LAT_KEY);
+      localStorage.removeItem(LOC_LON_KEY);
+    } catch (_) {}
+    const freshState = browserLocaleState() || "OD";
+    setStateCode(freshState);
+    syncStateCoords();
+    return true;
+  }
   if (saved) {
     try {
       const lat = localStorage.getItem(LOC_LAT_KEY);
       const lon = localStorage.getItem(LOC_LON_KEY);
       if (lat && lon) {
-        // Self-heal corrupted localStorage: if saved coordinates belong to a
-        // completely different region than the saved state (e.g. Odisha GPS
-        // with JK state code), the saved state was poisoned. Auto-correct it!
         const expectedState = nearestStateByCoords(Number(lat), Number(lon));
         const [expLat, expLon] = STATE_COORDS[expectedState] || [0, 0];
         const [savLat, savLon] = STATE_COORDS[saved] || [0, 0];
         const expDist = Math.pow(Number(lat) - expLat, 2) + Math.pow(Number(lon) - expLon, 2);
         const savDist = Math.pow(Number(lat) - savLat, 2) + Math.pow(Number(lon) - savLon, 2);
         if (savDist > expDist * 2) {
-          // Hard wipe poisoned state and manual flag so real GPS location takes over
           try { localStorage.removeItem(STATE_MANUAL_KEY); } catch (_) {}
           setStateCode(expectedState);
           $("lat").value = lat; $("lon").value = lon;
@@ -1143,19 +1161,37 @@ function restoreSavedState() {
     $("state").value = saved;
     return true;
   }
-  const seeded = setStateCode(browserLocaleState() || "UP");
+  const seeded = setStateCode(browserLocaleState() || "OD");
   if (seeded) syncStateCoords();
   return seeded;
 }
 
 function getPosition() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error("geolocation unavailable"));
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
-      timeout: 15000,
-      maximumAge: 600000,
-    });
+    if (!navigator.geolocation) {
+      console.warn("[Location] navigator.geolocation not available");
+      return reject(new Error("geolocation unavailable"));
+    }
+    // Try fast cell-tower/WiFi location first (doesn't timeout on emulators/indoors)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        console.log("[Location] Fix acquired:", pos.coords.latitude, pos.coords.longitude);
+        resolve(pos);
+      },
+      (err) => {
+        console.warn("[Location] Fast fix failed, trying high accuracy:", err.message);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos),
+          (err2) => reject(err2),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+        );
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 6000,
+        maximumAge: 300000,
+      }
+    );
   });
 }
 
@@ -1176,6 +1212,7 @@ async function detectLocationState() {
     const lat = latitude.toFixed(2);
     const lon = longitude.toFixed(2);
     const code = await resolveStateFromCoords(lat, lon);
+    console.log("[Location] Coords:", lat, lon, "resolved to state:", code);
     if (code) {
       $("lat").value = lat;
       $("lon").value = lon;
@@ -1185,7 +1222,9 @@ async function detectLocationState() {
       } catch (_) {}
       return code;
     }
-  } catch (_) { /* permission denied, timeout or resolver failure */ }
+  } catch (err) {
+    console.warn("[Location] detectLocationState failed:", err);
+  }
   return null;
 }
 
