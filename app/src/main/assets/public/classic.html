@@ -978,8 +978,22 @@ const BROWSER_LANG_STATE = {
   bn: "WB", as: "AS", pa: "PB", gu: "GJ", ml: "KL",
 };
 const STATE_STORAGE_KEY = "panchang-state-code";
+const STATE_MANUAL_KEY = "panchang-state-manual";
 const LOC_LAT_KEY = "panchang-loc-lat";
 const LOC_LON_KEY = "panchang-loc-lon";
+
+/**
+ * The user's explicit state pick always wins over GPS. The flag is set when
+ * the state is changed through the picker (and cleared only by "use my
+ * location" actions), so a background GPS refinement can no longer flip a
+ * manually chosen region back and forth on every launch.
+ */
+function markManualState() {
+  try { localStorage.setItem(STATE_MANUAL_KEY, "1"); } catch (_) {}
+}
+function isManualState() {
+  try { return localStorage.getItem(STATE_MANUAL_KEY) === "1"; } catch (_) { return false; }
+}
 
 /** State centroids — manual state picks must NOT keep stale Bengaluru coords. */
 const STATE_COORDS = {
@@ -1112,6 +1126,9 @@ async function detectLocationState() {
  */
 async function refineLocation() {
   if (window.__worldCity) return; // diaspora city mode: GPS must not hijack the view
+  // A manually picked state is never auto-switched. GPS only decides the
+  // region while the choice is still automatic (fresh install / seeded).
+  if (isManualState()) return;
   const detected = await detectLocationState();
   const target = detected || savedStateCode() || browserLocaleState() || "UP";
   if (target === $("state").value) return;
@@ -1541,7 +1558,19 @@ function monthOffset(year, month, delta) {
   return { year: y, month: m };
 }
 
+/* Boot-time callers (grid, day panel, sadhana rail, reminder scheduler)
+   used to scan the same month up to 3× — each scan is ~300-400 ms of
+   astronomy on the main thread. The memo collapses every duplicate within
+   the TTL window (keyed by state + coords + month). */
+const __festScanMemo = new Map();
+const FEST_MEMO_TTL = 120000;
+function festMemoKey(year, month) {
+  return [$("state").value, $("lat").value, $("lon").value, activeTz(), year, month].join("|");
+}
 async function fetchMonthFestivals(year, month) {
+  const key = festMemoKey(year, month);
+  const hit = __festScanMemo.get(key);
+  if (hit && Date.now() - hit.at < FEST_MEMO_TTL) return hit.events;
   const festQs = new URLSearchParams({
     state_code: $("state").value,
     year: String(year),
@@ -1553,7 +1582,13 @@ async function fetchMonthFestivals(year, month) {
   const data = await fetch(`/api/v1/festivals?${festQs}`)
     .then((r) => (r.ok ? r.json() : { events: [] }))
     .catch(() => ({ events: [] }));
-  return data.events || [];
+  const events = data.events || [];
+  __festScanMemo.set(key, { at: Date.now(), events });
+  if (__festScanMemo.size > 24) {
+    const oldest = [...__festScanMemo.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+    if (oldest) __festScanMemo.delete(oldest[0]);
+  }
+  return events;
 }
 
 function updateUpcomingFestHint(allEvents) {
@@ -1639,7 +1674,7 @@ function cellHtml(day) {
   </button>`;
 }
 
-function renderPanjiGrid() {
+function renderPanjiGrid(animate = false) {
   const L = lang();
   const vaar = I.vaar[L] || I.vaar.hi;
   const byDay = Object.fromEntries(monthDays.map((d) => [d.day, d]));
@@ -1685,10 +1720,12 @@ function renderPanjiGrid() {
       if (isMobile()) openSheet();
     });
   });
-  animateCalPage(1);
+  // Page-turn animation ONLY for explicit month navigation — not for the
+  // initial render or language/state repaints (it delayed first paint).
+  if (animate) animateCalPage(1);
 }
 
-async function loadMonthGrid() {
+async function loadMonthGrid(animate = false) {
   const u = ui();
   const months = I.months[lang()] || I.months.hi;
   $("calSectionTitle").textContent = u.calendar || u.date;
@@ -1753,7 +1790,7 @@ async function loadMonthGrid() {
     if (lunarName) metaParts.push(`${systemLabel ? systemLabel + " · " : ""}${lunarName}`);
     if ($("calMeta")) $("calMeta").textContent = metaParts.join("  ·  ");
     applyStateArt();
-    renderPanjiGrid();
+    renderPanjiGrid(animate);
   } catch (e) {
     $("panjiWrap").innerHTML = `<div style="padding:12px;color:var(--muted)">${u.error}</div>`;
   }
@@ -1789,7 +1826,10 @@ function applyChrome() {
   fillStateOptions();
   applyStateArt();
   syncDateDisplay();
-  loadMonthGrid();
+  // NOTE: loadMonthGrid() is intentionally NOT called here — every caller
+  // renders the grid explicitly (once) right after its loadAll() pass.
+  // applyChrome previously re-triggered the 5-fetch month scan on every
+  // label-only repaint, doubling the work on state/language changes.
   window.__localizeShell?.();
   // Sadhana tools hub + drawer rebuild in the active language
   window.dispatchEvent(new CustomEvent("panchang:chrome"));
@@ -1861,7 +1901,9 @@ function festDisplayName(event) {
   })();
   const curated = (I.festNames?.[L] || {})[id];
   const own = names[L];
-  if (own && !(latin(own) && curated)) return own;
+  // If the engine-supplied name is contaminated with Latin script (e.g.
+  // "Chaitra ଏକାଦଶୀ"), prefer a curated or composed regional-script name.
+  if (own && !(latin(own) && (curated || composed))) return own;
   if (curated) return curated;
   if (composed && (!own || latin(own))) return composed;
   return own || names.hi || names.en || id || "—";
@@ -2293,8 +2335,7 @@ function shiftMonth(delta) {
   viewMonth += delta;
   if (viewMonth < 1) { viewMonth = 12; viewYear -= 1; }
   if (viewMonth > 12) { viewMonth = 1; viewYear += 1; }
-  animateCalPage(delta);
-  loadMonthGrid();
+  loadMonthGrid(true);
 }
 
 $("date").value = todayIso();
@@ -2314,13 +2355,18 @@ $("btnCalLoad").addEventListener("click", loadAll);
 $("btn").addEventListener("click", loadAll);
 $("sheetClose").addEventListener("click", closeSheet);
 $("daySheet").addEventListener("click", (e) => { if (e.target.id === "daySheet") closeSheet(); });
-$("state").addEventListener("change", async () => {
-  try { localStorage.setItem(STATE_STORAGE_KEY, $("state").value); } catch (_) {}
-  syncStateCoords();
-  $("lang").value = lang();
-  applyChrome();
-  await loadAll();
-});
+function onStateChange({ manual = true } = {}) {
+  return (async () => {
+    try { localStorage.setItem(STATE_STORAGE_KEY, $("state").value); } catch (_) {}
+    if (manual) markManualState(); else try { localStorage.removeItem(STATE_MANUAL_KEY); } catch (_) {}
+    syncStateCoords();
+    $("lang").value = lang();
+    applyChrome();
+    await loadAll();
+    await loadMonthGrid();
+  })();
+}
+$("state").addEventListener("change", () => onStateChange());
 $("date").addEventListener("change", async () => {
   const v = $("date").value;
   if (!v) return;
@@ -2342,6 +2388,7 @@ async function initializeApp() {
   applyChrome();
   syncDateDisplay();
   await loadAll();
+  await loadMonthGrid(false);
   // Refine to the detected state in the background; reloads only if the
   // detected state differs from what is already on screen.
   refineLocation();

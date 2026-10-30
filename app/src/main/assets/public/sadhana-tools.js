@@ -200,11 +200,14 @@
       return window.SADHANA_GITA[doy % window.SADHANA_GITA.length];
     })() : null;
     if (!v) { openTool("gita", t("tool_gita"), "<p class='sd-hint'>—</p>"); return; }
+    // For Hindi users the English verse rendering is redundant noise — show
+    // Sanskrit + Hindi meaning only (the share text was already hi-only).
+    const showEn = !(window.lang && window.lang() === "hi");
     openTool("gita", t("tool_gita"), `
       <div class="sd-ref big">भगवद्गीता ${esc(v.ref)}</div>
       <pre class="sd-aarti-text gita">${esc(v.sa)}</pre>
       <p class="sd-gita-hi">${esc(v.hi)}</p>
-      <p class="sd-gita-en">${esc(v.en)}</p>
+      ${showEn ? `<p class="sd-gita-en">${esc(v.en)}</p>` : ""}
       <div class="mala-actions"><button type="button" class="sd-btn" id="sdGitaShare2">${esc(t("gita_share"))}</button></div>
       ${box ? "" : ""}`);
     $("sdGitaShare2")?.addEventListener("click", async () => {
@@ -355,10 +358,13 @@
         else if (tool === "vrat") renderVrat();
         else if (tool === "world") renderWorld();
         else if (tool === "region") {
+          // Close any open sheet first, otherwise it stays behind the picker.
+          closeTool();
           const el = $("state");
           el?.focus();
           el?.showPicker?.();
         } else if (tool === "date") {
+          closeTool();
           const el = $("date");
           el?.focus();
           el?.showPicker?.();

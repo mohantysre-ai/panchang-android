@@ -58,6 +58,61 @@
   V.esc = esc; V.t = t; V.N = N; V.lang = lang; V.toast = toast;
   V.todayIso = todayIso; V.dateStr = dateStr; V.hash = hash; V.jget = jget; V.jset = jset;
 
+  /* ---------- localized panchang names ----------
+     The offline engine payload always carries English `name` strings
+     ("Krishna Panchami", "Ardra"). Every tool must render them through the
+     I18N arrays for the active language — otherwise sheets stay half-English. */
+  V.tithiName = (p) => {
+    try {
+      const L = lang();
+      const idx = p?.tithi?.index;
+      const arr = window.I18N?.tithi?.[L] || window.I18N?.tithi?.hi || [];
+      return (idx && arr[idx - 1]) || p?.tithi?.name || "—";
+    } catch (_) { return p?.tithi?.name || "—"; }
+  };
+  V.nakNameOf = (p) => {
+    try {
+      const L = lang();
+      const idx = p?.nak?.index ?? p?.panchang?.nakshatra?.index;
+      const arr = window.I18N?.nakshatra?.[L] || window.I18N?.nakshatra?.hi || [];
+      return (idx && arr[idx - 1]) || p?.nak?.name || p?.panchang?.nakshatra?.name || "—";
+    } catch (_) { return p?.nak?.name || p?.panchang?.nakshatra?.name || "—"; }
+  };
+  V.localDate = (iso) => {
+    try { return window.localizeDate ? window.localizeDate(iso) : iso; } catch (_) { return iso; }
+  };
+  V.pakshaName = (z) => {
+    try {
+      const terms = window.I18N?.vratTerms?.[lang()] || window.I18N?.vratTerms?.hi || {};
+      return z < 15 ? (terms.shukla || "शुक्ल") : (terms.krishna || "कृष्ण");
+    } catch (_) { return z < 15 ? "शुक्ल" : "कृष्ण"; }
+  };
+  /* Localized festival-name resolution for raw ids (stories titles etc.):
+     curated I.festNames → composed "<lunar month> <slot>" → id. */
+  V.festNameOf = (id) => {
+    try {
+      const key = String(id || "").toLowerCase();
+      const L = lang();
+      const curated = (window.I18N?.festNames?.[L] || {})[key] || (window.I18N?.festNames?.hi || {})[key];
+      if (curated) return curated;
+      const months = window.I18N?.lunarMonths?.[L] || window.I18N?.lunarMonths?.hi || [];
+      const terms = window.I18N?.vratTerms?.[L] || window.I18N?.vratTerms?.hi || {};
+      if (key.startsWith("vrata_")) {
+        const slot = key.slice(6);
+        const base = terms[slot];
+        if (base) return `${terms.vrata ? terms.vrata + " " : ""}${base}`.trim();
+      }
+      const m = key.match(/^(shukla|krishna)_([a-z_]+)_(\d+)$/);
+      if (m) {
+        const pak = m[1] === "shukla" ? terms.shukla : terms.krishna;
+        const base = terms[m[2]];
+        const mi = Number(m[3]);
+        if (pak && base) return mi && months[mi - 1] ? `${months[mi - 1]} ${pak} ${base}` : `${pak} ${base}`;
+      }
+    } catch (_) {}
+    return String(id || "").replace(/_/g, " ");
+  };
+
   /* Generic localized canvas-card modal (reuses .scm-* styles). */
   V.showCard = function (canvas, fileName) {
     document.getElementById("shareCardModal")?.remove();
@@ -99,8 +154,8 @@
     };
   };
   /* engine tithi/nakshatra indexes are 1-based → zero-based helpers */
-  V.tithiZ = (p) => ((p?.tithi?.index || 1) - 1 + 30) % 30;
-  V.nakZ = (p) => (p?.nak?.index || 1) - 1;
+  V.tithiZ = (p) => ((p?.tithi?.index || p?.panchang?.tithi?.index || 1) - 1 + 30) % 30;
+  V.nakZ = (p) => ((p?.nak?.index ?? p?.panchang?.nakshatra?.index ?? 1) || 1) - 1;
   V.panchakActive = (p) => [22, 23, 24, 25, 26].includes(V.nakZ(p));
   V.rikta = (tiZ) => [3, 8, 13, 18, 23, 28].includes(tiZ);
 
@@ -237,7 +292,7 @@
         return d.getTime();
       };
       const p = V.todayPanchang();
-      const tithiName = p?.tithi?.name || "";
+      const tithiName = V.tithiName(p);
       const notifs = [
         { title: `🪔 ${t("notif_morning")}`, body: `${tithiName} · ${t("today_lbl")}`, id: 100, schedule: { at: new Date(at(6, 30)), allowWhileIdle: true } },
         { title: `🔥 ${t("notif_streak")}`, body: t("notif_streak_body"), id: 101, schedule: { at: new Date(at(20, 30)), allowWhileIdle: true } },
@@ -509,7 +564,7 @@
       title: vara ? `${vara.god_hi} 🙏` : "",
       lines: [
         { text: d, size: 30, gold: true },
-        { text: p?.tithi?.name || "", size: 34 },
+        { text: V.tithiName(p), size: 34 },
         { text: f.line, size: 30 },
       ],
       footer: vara?.mantra || "",
@@ -522,7 +577,7 @@
         title: vara ? `${vara.god_hi} 🙏` : "",
         lines: [
           { text: d, size: 44, gold: true },
-          { text: p?.tithi?.name || "", size: 52 },
+          { text: V.tithiName(p), size: 52 },
           { text: "", size: 10 },
           { text: f.line, size: 40 },
           { text: "", size: 14 },
@@ -541,13 +596,15 @@
     let cur = keys[new Date().getDay() % keys.length];
     render();
     function render() {
+      // Story titles are localized festival names — never raw english ids.
+      const label = (k) => (window.festDisplayName && window.festDisplayName({ id: k, names: {} })) || V.festNameOf(k);
       V.openSheet("stories", t("stories_title"), `
-        <select id="vStoryPick" class="v-sel">${keys.map((k) => `<option value="${esc(k)}" ${k === cur ? "selected" : ""}>${esc(k.replace(/_/g, " "))}</option>`).join("")}</select>
+        <select id="vStoryPick" class="v-sel">${keys.map((k) => `<option value="${esc(k)}" ${k === cur ? "selected" : ""}>${esc(label(k))}</option>`).join("")}</select>
         <p class="v-story">${esc(S[cur] || "")}</p>
         <div class="mala-actions"><button type="button" class="sd-btn ghost" id="vStoryShare">${esc(t("gita_share"))}</button></div>`);
       $("vStoryPick")?.addEventListener("change", (e) => { cur = e.target.value; render(); });
       $("vStoryShare")?.addEventListener("click", () => {
-        const c = V.paintCard({ title: `📖 ${t("stories_title")}`, lines: [{ text: S[cur] || "", size: 36 }], footer: cur.replace(/_/g, " ") });
+        const c = V.paintCard({ title: `📖 ${t("stories_title")}`, lines: [{ text: S[cur] || "", size: 36 }], footer: label(cur) });
         V.showCard(c, "Story.png");
       });
     }
@@ -586,18 +643,21 @@
         .filter((e) => e.date >= d0 && /sankranti/i.test(e.id))
         .sort((a, b) => a.date.localeCompare(b.date));
       const ecl = (V.ECLIPSES || []).filter((e) => e[0] >= d0).slice(0, 10);
+      // Eclipse type words localized (annular/total/partial/penumbral).
+      const eclKind = (k) => t("ecl_" + k, null) || k;
+      const eclMap = { annular: eclKind("annular"), total: eclKind("total"), partial: eclKind("partial"), penumbral: eclKind("penumbral") };
       V.openSheet("sankranti", t("sank_title"), `
         <div class="v-sub">${esc(t("sank_total"))}</div>
         ${evs.length ? evs.map((e) => `
           <button type="button" class="sd-vrat-row" data-date="${esc(e.date)}">
             <span class="sd-vrat-name">${esc((window.festDisplayName && window.festDisplayName(e)) || e.id)}</span>
-            <span class="sd-vrat-date">${esc(e.date)} · ${N(Math.max(0, Math.round((Date.parse(e.date) - Date.parse(d0)) / 86400000)))} ${esc(t("day_unit", "दिन"))}</span>
+            <span class="sd-vrat-date">${esc(V.localDate(e.date))} · ${N(Math.max(0, Math.round((Date.parse(e.date) - Date.parse(d0)) / 86400000)))} ${esc(t("day_unit", "दिन"))}</span>
           </button>`).join("") : `<p class="sd-hint">—</p>`}
         <div class="v-sub">🌑 ${esc(t("sank_title"))}</div>
         ${ecl.map(([d, ty, k]) => `
           <div class="v-tirtha">
-            <b>${esc(d)}</b>
-            <span>${esc(ty === "surya" ? t("sank_surya") : t("sank_chandra"))} · ${esc(k)}</span>
+            <b>${esc(V.localDate(d))}</b>
+            <span>${esc(ty === "surya" ? t("sank_surya") : t("sank_chandra"))} · ${esc(eclMap[k] || k)}</span>
           </div>`).join("")}
         <p class="sd-hint">— ${esc(lang() === "en" ? "Dates are astronomical; Sutak timings vary by location." : "तिथियाँ खगोलीय हैं; सूतक काल स्थानानुसार भिन्न हो सकता है।")}</p>`);
       V.sheetBody().querySelectorAll(".sd-vrat-row").forEach((b) => {
@@ -627,15 +687,16 @@
       const rows = ps.map((p, i) => {
         const panchak = V.panchakActive(p);
         return `<div class="v-tirtha ${panchak ? "warn" : ""}">
-          <b>${esc(days[i])}</b>
-          <span>${esc(p?.panchang?.nakshatra?.name || "—")}${panchak ? ` · ⚠️ ${esc(t("panchak_active", "पंचक"))}` : ""}</span>
+          <b>${esc(V.localDate(days[i]))}</b>
+          <span>${esc(V.nakNameOf(p))}${panchak ? ` · ⚠️ ${esc(t("panchak_active", "पंचक"))}` : ""}</span>
         </div>`;
       });
       const any = ps.some((p) => V.panchakActive(p));
+      const avoidList = (V.PANCHAK_AVOID || {})[lang()] || V.PANCHAK_AVOID?.hi || [];
       V.openSheet("panchak", t("panchak_title"), `
         ${any ? "" : `<div class="v-ok">${esc(t("panchak_none7"))} ✓</div>`}
         ${rows.join("")}
-        <p class="sd-hint">${esc(t("panchak_avoid"))}: ${esc((V.PANCHAK_TYPES || []).map((x) => x.avoid_hi).slice(0, 3).join(" / "))}</p>`);
+        <p class="sd-hint">${esc(t("panchak_avoid"))}: ${esc(avoidList.slice(0, 3).join(" / "))}</p>`);
     }).catch(() => V.openSheet("panchak", t("panchak_title"), `<p class="sd-hint">—</p>`));
   }
 
@@ -664,11 +725,11 @@
           <div class="v-moon-disc"><div class="v-moon-lit" style="width:${Math.min(100, illum)}%"></div></div>
           <div class="v-moon-info">
             <b>${esc(t("moon_illum"))}: ${N(illum)}%</b>
-            <span>${esc(paksha)} · ${esc(p?.tithi?.name || "")}</span>
+            <span>${esc(V.pakshaName(tiZ))} · ${esc(V.tithiName(p))}</span>
           </div>
         </div>
-        <div class="v-tirtha"><b>${esc(t("moon_next_full"))}</b><span>${esc(full?.date || "—")} · ${esc((window.festDisplayName && full && window.festDisplayName(full)) || "")}</span></div>
-        <div class="v-tirtha"><b>${esc(t("moon_next_new"))}</b><span>${esc(neu?.date || "—")} · ${esc((window.festDisplayName && neu && window.festDisplayName(neu)) || "")}</span></div>`);
+        <div class="v-tirtha"><b>${esc(t("moon_next_full"))}</b><span>${esc(V.localDate(full?.date))} · ${esc((window.festDisplayName && full && window.festDisplayName(full)) || "")}</span></div>
+        <div class="v-tirtha"><b>${esc(t("moon_next_new"))}</b><span>${esc(V.localDate(neu?.date))} · ${esc((window.festDisplayName && neu && window.festDisplayName(neu)) || "")}</span></div>`);
     }).catch(() => { /* sheet already open with loader */ });
   }
 

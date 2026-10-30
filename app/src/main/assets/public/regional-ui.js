@@ -1,30 +1,22 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const state = () => $("#state")?.value || "KA";
-  const date = () => $("#date")?.value || new Date().toISOString().slice(0, 10);
-  const lat = () => $("#lat")?.value || "12.9716";
-  const lon = () => $("#lon")?.value || "77.5946";
-  const labels = {
-    hi: { chog: "चौघड़िया", gowri: "गौरी पंचांगम्", good: "शुभ", bad: "अशुभ", access: "अक्षर आकार", month: "क्षेत्रीय माह" },
-    kn: { chog: "ಚೌಘಡಿಯಾ", gowri: "ಗೌರಿ ಪಂಚಾಂಗಂ", good: "ಶುಭ", bad: "ಅಶುಭ", access: "ಅಕ್ಷರ ಗಾತ್ರ", month: "ಪ್ರಾದೇಶಿಕ ತಿಂಗಳು" },
-    ta: { chog: "சௌகடியா", gowri: "கௌரி பஞ்சாங்கம்", good: "நல்லது", bad: "தீயது", access: "எழுத்து அளவு", month: "பிராந்திய மாதம்" },
-    te: { chog: "చౌఘడియా", gowri: "గౌరి పంచాంగం", good: "శుభం", bad: "అశుభం", access: "అక్షర పరిమాణం", month: "ప్రాంతీయ మాసం" },
-    mr: { chog: "चौघडिया", gowri: "गौरी पंचांग", good: "शुभ", bad: "अशुभ", access: "अक्षर आकार", month: "प्रादेशिक महिना" },
-    or: { chog: "ଚୌଘଡ଼ିଆ", gowri: "ଗୌରୀ ପଞ୍ଚାଙ୍ଗ", good: "ଶୁଭ", bad: "ଅଶୁଭ", access: "ଅକ୍ଷର ଆକାର", month: "ଆଞ୍ଚଳିକ ମାସ" },
-    bn: { chog: "চৌঘড়িয়া", gowri: "গৌরী পঞ্জিকা", good: "শুভ", bad: "অশুভ", access: "অক্ষরের আকার", month: "আঞ্চলিক মাস" },
-    as: { chog: "চৌঘড়িয়া", gowri: "গৌৰী পঞ্জিকা", good: "শুভ", bad: "অশুভ", access: "আখৰৰ আকাৰ", month: "আঞ্চলিক মাহ" },
-    pa: { chog: "ਚੌਘੜੀਆ", gowri: "ਗੌਰੀ ਪੰਚਾਂਗ", good: "ਸ਼ੁਭ", bad: "ਅਸ਼ੁਭ", access: "ਅੱਖਰ ਆਕਾਰ", month: "ਖੇਤਰੀ ਮਹੀਨਾ" },
-    gu: { chog: "ચોઘડિયા", gowri: "ગૌરી પંચાંગ", good: "શુભ", bad: "અશુભ", access: "અક્ષર કદ", month: "પ્રાદેશિક મહિનો" },
-    ml: { chog: "ചൗഘഡിയ", gowri: "ഗൗരി പഞ്ചാംഗം", good: "ശുഭം", bad: "അശുഭം", access: "അക്ഷര വലുപ്പം", month: "പ്രാദേശിക മാസം" },
-  };
-  const lang = () => $("#lang")?.value || window.I18N?.stateLang?.[state()] || "en";
-  const L = () => labels[lang()] || labels.hi;
 
-  function regionalDigits(value) {
-    const digits = window.I18N?.digits?.[lang()];
-    if (!digits) return String(value);
-    return String(value).replace(/[0-9]/g, (d) => digits[Number(d)]);
-  }
+  const labels = {
+    hi: { access: "अक्षर आकार" },
+    kn: { access: "ಅಕ್ಷರ ಗಾತ್ರ" },
+    ta: { access: "எழுத்து அளவு" },
+    te: { access: "అక్షర పరిమాణం" },
+    mr: { access: "अक्षर आकार" },
+    or: { access: "ଅକ୍ଷର ଆକାର" },
+    bn: { access: "অক্ষরের আকার" },
+    as: { access: "আখৰৰ আকাৰ" },
+    pa: { access: "ਅੱਖਰ ਆਕਾਰ" },
+    gu: { access: "અક્ષર કદ" },
+    ml: { access: "അക്ഷര വലുപ്പം" },
+  };
+  const lang = () => $("#lang")?.value || window.I18N?.stateLang?.[state()] || "hi";
+  const L = () => labels[lang()] || labels.hi;
 
   function applyScale() {
     const v = Number(localStorage.getItem("panchang-font-scale") || 1);
@@ -57,6 +49,15 @@
     localStorage.setItem("panchang-font-scale", v);
     applyScale();
   }
+
+  /* NOTE (perf fix): this module previously ran a SECOND data pipeline of its
+     own — a /api/v1/calendar/month fetch at +900 ms and a MutationObserver on
+     #hours that re-fetched after every loadAll() — duplicating what
+     loadMonthGrid() already computes and re-rendering the calendar title a
+     second time (visible pop-in + ~150 ms extra main-thread work per load).
+     The duplicate pipeline was removed; the state accent is applied from the
+     cached states payload below. */
+
   async function states() {
     try {
       const d = await fetch("/api/v1/states").then((r) => r.json());
@@ -76,40 +77,12 @@
     }
     if (c?.style) document.body.dataset.stateStyle = c.style || "";
   }
-  async function month() {
-    const h = $("#calTitle");
-    if (!h) return;
-    try {
-      const d = new Date(date());
-      const q = new URLSearchParams({
-        state_code: state(),
-        year: String(d.getFullYear()),
-        month: String(d.getMonth() + 1),
-        timezone: "Asia/Kolkata",
-      });
-      const x = await fetch(`/api/v1/calendar/month?${q}`).then((r) => r.json());
-      let m = h.querySelector(".regional-month");
-      if (!m) {
-        m = document.createElement("span");
-        m.className = "regional-month";
-        h.appendChild(m);
-      }
-      m.textContent = `${L().month}: ${x.regional_month_name || ""}`;
-      document.documentElement.style.setProperty(
-        "--state-accent",
-        x.regional_accent ||
-          getComputedStyle(document.documentElement).getPropertyValue("--state-accent")
-      );
-    } catch (_) {}
-  }
   function refresh() {
     if (window.__regionalBusy) return;
     window.__regionalBusy = true;
     try {
-      // Do not inject a second muhurat card — classic #hours / #r already render it.
       document.querySelector("#regionalMuhurat")?.remove();
       setAccent();
-      month();
     } finally {
       setTimeout(() => {
         window.__regionalBusy = false;
@@ -121,19 +94,6 @@
     states();
     const s = $("#state");
     if (s) s.addEventListener("change", () => setTimeout(refresh, 250));
-    const hours = $("#hours");
-    if (hours) {
-      let lastSig = "";
-      const mo = new MutationObserver(() => {
-        if (window.__regionalBusy || !hours.children.length) return;
-        const sig = hours.innerHTML;
-        if (sig === lastSig) return;
-        lastSig = sig;
-        clearTimeout(window.__regionalTimer);
-        window.__regionalTimer = setTimeout(refresh, 120);
-      });
-      mo.observe(hours, { childList: true });
-    }
     setTimeout(refresh, 900);
   });
 })();

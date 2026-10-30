@@ -346,6 +346,27 @@
     I.ui[L] = Object.assign({}, I.ui[L] || {}, bag);
   });
 
+  /* Empty-festival-state + category labels: these were previously present
+     for hi/or only, so every other language showed the English fallback
+     "No festival on this date." on the festivals tab. */
+  const emptyStateExtras = {
+    hi: {},
+    mr: { no_festivals_today: "या तारखेस सण नाही.", no_festivals_month: "या महिन्यात सण नाही.", minor: "लघु", regional: "प्रादेशिक" },
+    kn: { no_festivals_today: "ಈ ದಿನಾಂಶದಲ್ಲಿ ಹಬ್ಬವಿಲ್ಲ.", no_festivals_month: "ಈ ತಿಂಗಳಲ್ಲಿ ಹಬ್ಬಗಳಿಲ್ಲ.", minor: "ಕಿರು", regional: "ಪ್ರಾದೇಶಿಕ" },
+    ta: { no_festivals_today: "இந்த தேதியில் பண்டிகை இல்லை.", no_festivals_month: "இந்த மாதத்தில் பண்டிகைகள் இல்லை.", minor: "சிறு", regional: "பிராந்திய" },
+    te: { no_festivals_today: "ఈ తేదీన పండుగ లేదు.", no_festivals_month: "ఈ నెలలో పండుగలు లేవు.", minor: "చిన్న", regional: "ప్రాంతీయ" },
+    or: { minor: "କ୍ଷୁଦ୍ର", regional: "ଆଞ୍ଚଳିକ" },
+    bn: { no_festivals_today: "এই তারিখে কোনো উৎসব নেই।", no_festivals_month: "এই মাসে কোনো উৎসব নেই।", minor: "ক্ষুদ্র", regional: "আঞ্চলিক" },
+    as: { no_festivals_today: "এই তাৰিখত কোনো উৎসৱ নাই।", no_festivals_month: "এই মাহত কোনো উৎসৱ নাই।", minor: "ক্ষুদ্ৰ", regional: "আঞ্চলিক" },
+    pa: { no_festivals_today: "ਇਸ ਤਾਰੀਖ ਤੇ ਕੋਈ ਤਿਉਹਾਰ ਨਹੀਂ।", no_festivals_month: "ਇਸ ਮਹੀਨੇ ਕੋਈ ਤਿਉਹਾਰ ਨਹੀਂ।", minor: "ਛੋਟਾ", regional: "ਖੇਤਰੀ" },
+    gu: { no_festivals_today: "આ તારીખે કોઈ તહેવાર નથી.", no_festivals_month: "આ મહિનામાં કોઈ તહેવાર નથી.", minor: "નાનું", regional: "પ્રાદેશિક" },
+    ml: { no_festivals_today: "ഈ തീയതിയിൽ ഉത്സവമില്ല.", no_festivals_month: "ഈ മാസത്തിൽ ഉത്സവങ്ങളില്ല.", minor: "ചെറു", regional: "പ്രാദേശിക" },
+  };
+  Object.entries(emptyStateExtras).forEach(([L, bag]) => {
+    if (!Object.keys(bag).length) return;
+    I.ui[L] = Object.assign({}, I.ui[L] || {}, bag);
+  });
+
   /* Vrat-slot phrases used to compose monthly-vrata names in regional script
      (e.g. amavasya_8 → "कार्तिक अमावस्या" / "কার্তিক অমাবস্যা"). */
   I.vratTerms = {
@@ -380,4 +401,40 @@
   Object.keys(I.festNames).forEach((L) => {
     I.festNames[L] = I.festNames[L] || {};
   });
+  /* Eclipse-type words (the sankranti & eclipse sheet previously showed the
+     raw english words annular / total / partial / penumbral). */
+  const eclExtras = {
+    hi: { ecl_annular: "मुग्ध (रिंग)", ecl_total: "पूर्ण", ecl_partial: "आंशिक", ecl_penumbral: "छाया" },
+    mr: { ecl_annular: "वलयाकार", ecl_total: "पूर्ण", ecl_partial: "आंशिक", ecl_penumbral: "छटा" },
+    kn: { ecl_annular: "ವಲಯಾಕಾರ", ecl_total: "ಪೂರ್ಣ", ecl_partial: "ಆಂಶಿಕ", ecl_penumbral: "ಛಾಯೆ" },
+    ta: { ecl_annular: "வளைய வகை", ecl_total: "முழு", ecl_partial: "பகுதி", ecl_penumbral: "நிழல்" },
+    te: { ecl_annular: "వలయాకార", ecl_total: "పూర్తి", ecl_partial: "ఆంశిక", ecl_penumbral: "చాయ" },
+    or: { ecl_annular: "ମୁଦୁଳି", ecl_total: "ପୂର୍ଣ୍ଣ", ecl_partial: "ଆଂଶିକ", ecl_penumbral: "ଛାୟା" },
+    bn: { ecl_annular: "বলয়াকার", ecl_total: "পূর্ণ", ecl_partial: "আংশিক", ecl_penumbral: "ছায়া" },
+    as: { ecl_annular: "বলয়াকাৰ", ecl_total: "পূৰ্ণ", ecl_partial: "আংশিক", ecl_penumbral: "ছায়া" },
+    pa: { ecl_annular: "ਮੁੰਡਲਾਕਾਰ", ecl_total: "ਪੂਰਨ", ecl_partial: "ਅੰਸ਼ਕ", ecl_penumbral: "ਛਾਂ" },
+    gu: { ecl_annular: "વલયાકાર", ecl_total: "પૂર્ણ", ecl_partial: "આંશિક", ecl_penumbral: "છાયા" },
+    ml: { ecl_annular: "വളയാകൃതി", ecl_total: "പൂർണ", ecl_partial: "ഭാഗിക", ecl_penumbral: "നിഴൽ" },
+  };
+  Object.entries(eclExtras).forEach(([L, bag]) => {
+    I.ui[L] = Object.assign({}, I.ui[L] || {}, bag);
+  });
+
+  /* Gap-fill pass: stories tool + curated map now resolve in every language
+     (harvested from the engine data + curated regional spellings). */
+  const festNamesGapFill = {
+    hi: { diwali:"दीपावली", dhanteras:"धनतेरस", govardhan_puja:"गोवर्धन पूजा", bhai_dooj:"भाई दूज", dussehra:"विजयादशमी", navratri_start:"नवरात्रि आरंभ", durga_ashtami:"दुर्गा अष्टमी", maha_shivaratri:"महाशिवरात्रि", holi:"होली", raksha_bandhan:"रक्षाबंधन", ganesha_chaturthi:"गणेश चतुर्थी", nag_panchami:"नाग पंचमी", ram_navami:"राम नवमी", hanuman_jayanti:"हनुमान जयंती", akshaya_tritiya:"अक्षय तृतीया", guru_purnima:"गुरु पूर्णिमा", buddha_purnima:"बुद्ध पूर्णिमा", vasant_panchami:"वसंत पंचमी", makar_sankranti:"मकर संक्रांति", kartika_purnima:"कार्तिक पूर्णिमा" },
+    mr: { ganesha_chaturthi:"गणेश चतुರ್ಥಿ" },
+    kn: { diwali:"ದೀಪಾವಳಿ", ganesha_chaturthi:"ಗಣೇಶ ಚತುರ್ಥಿ", ram_navami:"ರಾಮ ನವಮಿ", makar_sankranti:"ಮಕರ ಸಂಕ್ರಾಂತಿ" },
+    ta: { diwali:"தீபாவಳಿ", raksha_bandhan:"ரக்ஷா பந்தன்", ram_navami:"ராம நவமி", makar_sankranti:"மகர சங்கராந்தி" },
+    te: { diwali:"దీపావళి", ram_navami:"రామ నవమి", makar_sankranti:"మకర సంక్రాంతి" },
+    or: { diwali:"ଦୀପାବଳି", makar_sankranti:"ମକର ସଂକ୍ରାନ୍ତି", nuakhai:"ନୂଆଁଖାଇ" },
+    bn: { diwali:"দীপাবলি", makar_sankranti:"মকর সংক্রান্তি" },
+    as: { diwali:"দীপাৱলী" },
+    ml: { diwali:"ദീപാവലി", makar_sankranti:"മകരസംക്രാന്തി" },
+  };
+  Object.entries(festNamesGapFill).forEach(([L, bag]) => {
+    I.festNames[L] = Object.assign({}, I.festNames[L] || {}, bag);
+  });
+
 })();

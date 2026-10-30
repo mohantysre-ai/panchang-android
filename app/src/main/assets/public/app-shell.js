@@ -207,8 +207,10 @@
       const p = window.__lastPanchang;
       const slots = p?.regional?.gowri_panchangam || p?.regional?.choghadiya_day || [];
       const active = slots[0];
+      const L = currentLang();
+      const table = window.I18N?.gowri?.[L] || window.I18N?.choghadiya?.[L] || window.I18N?.gowri?.hi || {};
       window.updatePanchangLockScreen?.({
-        currentMuhurat: active?.name || "Muhurat",
+        currentMuhurat: (active && (table[active.name] || active.name)) || "Muhurat",
         endTime: (active?.time || "").split(" - ")[1] || "—",
         progressPercent: Math.round(p?.panchang?.tithi?.progress_percent || 0),
       });
