@@ -1044,8 +1044,16 @@ function browserLocaleState() {
 async function resolveStateFromCoords(lat, lon) {
   try {
     const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-    const r = await fetch(`/api/v1/location/resolve?${qs}`);
-    if (r.ok) {
+    // 5-second timeout guard so a slow/offline API never blocks GPS detection.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    let r;
+    try {
+      r = await fetch(`/api/v1/location/resolve?${qs}`, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (r && r.ok) {
       const resolved = await r.json();
       const code = resolved.state_code;
       if (code && I.stateLang[code]) return code;
@@ -2420,23 +2428,34 @@ $("langOverride").addEventListener("change", async () => {
 $("btnLocate").addEventListener("click", async () => {
   const btn = $("btnLocate");
   btn.disabled = true;
+  const statusEl = $("status");
   try {
     // "Locate me" re-arms GPS auto-follow even after an earlier manual pick,
     // then immediately re-detects — the one-tap fix for "app shows the wrong
     // state/language" without digging through settings.
     try { localStorage.removeItem(STATE_MANUAL_KEY); } catch (_) {}
     const detected = await detectLocationState();
-    if (detected && detected !== $("state").value) {
-      setStateCode(detected);
-      syncStateCoords();
-      $("lang").value = lang();
-      applyChrome();
-      await loadAll();
-      await loadMonthGrid();
-    } else if (!detected) {
-      $("status").textContent = ui().locate_fail || "Could not detect location — pick your state";
+    if (detected) {
+      if (detected !== $("state").value) {
+        setStateCode(detected);
+        syncStateCoords();
+        $("lang").value = lang();
+        applyChrome();
+        await loadAll();
+        await loadMonthGrid();
+      } else {
+        // Already on the correct state — give the user positive feedback.
+        if (statusEl) statusEl.textContent = ui().locate_ok || "Location is already set correctly";
+      }
+    } else {
+      // GPS denied, timed out, or resolver failed — prompt user to pick manually.
+      if (statusEl) statusEl.textContent = ui().locate_fail || "Could not detect location — pick your state";
     }
-  } finally { btn.disabled = false; }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = ui().locate_fail || "Could not detect location — pick your state";
+  } finally {
+    btn.disabled = false;
+  }
 });
 $("date").addEventListener("change", async () => {
   const v = $("date").value;
