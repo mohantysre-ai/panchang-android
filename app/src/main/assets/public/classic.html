@@ -1041,7 +1041,25 @@ function browserLocaleState() {
   return BROWSER_LANG_STATE[code] || null;
 }
 
+/** Nearest state by centroid (offline, always correct fallback). */
+function nearestStateByCoords(lat, lon) {
+  let nearestState = "UP";
+  let minDistance = Infinity;
+  for (const [code, [sLat, sLon]] of Object.entries(STATE_COORDS)) {
+    const dist = Math.pow(lat - sLat, 2) + Math.pow(lon - sLon, 2);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestState = code;
+    }
+  }
+  return nearestState;
+}
+
 async function resolveStateFromCoords(lat, lon) {
+  // Always compute the offline nearest-centroid answer first — it is used both
+  // as a sanity-check against the remote API and as the definitive fallback.
+  const offlineCode = nearestStateByCoords(lat, lon);
+
   try {
     const qs = new URLSearchParams({ lat: String(lat), lon: String(lon) });
     // 5-second timeout guard so a slow/offline API never blocks GPS detection.
@@ -1055,21 +1073,24 @@ async function resolveStateFromCoords(lat, lon) {
     }
     if (r && r.ok) {
       const resolved = await r.json();
-      const code = resolved.state_code;
-      if (code && I.stateLang[code]) return code;
+      const apiCode = resolved.state_code;
+      if (apiCode && I.stateLang[apiCode]) {
+        // Sanity-check: if the API result's centroid is more than 10 degrees
+        // (squared) away from the GPS fix but the offline answer is much closer,
+        // the API is returning a bogus result (e.g. JK for an Odisha fix).
+        // Reject it and trust the offline centroid instead.
+        const [apiLat, apiLon] = STATE_COORDS[apiCode] || [0, 0];
+        const apiDist = Math.pow(lat - apiLat, 2) + Math.pow(lon - apiLon, 2);
+        const [offLat, offLon] = STATE_COORDS[offlineCode] || [0, 0];
+        const offDist = Math.pow(lat - offLat, 2) + Math.pow(lon - offLon, 2);
+        // Accept API result only if it is not absurdly far compared to offline answer.
+        // Factor of 4 means "if API pick is >2x farther than nearest centroid, reject it".
+        if (apiDist <= offDist * 4) return apiCode;
+      }
     }
   } catch (_) {}
 
-  let nearestState = "UP";
-  let minDistance = Infinity;
-  for (const [code, [sLat, sLon]] of Object.entries(STATE_COORDS)) {
-    const dist = Math.pow(lat - sLat, 2) + Math.pow(lon - sLon, 2);
-    if (dist < minDistance) {
-      minDistance = dist;
-      nearestState = code;
-    }
-  }
-  return nearestState;
+  return offlineCode;
 }
 
 function setStateCode(code) {
