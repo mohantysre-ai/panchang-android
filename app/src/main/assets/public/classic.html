@@ -1116,13 +1116,29 @@ function savedStateCode() {
 function restoreSavedState() {
   const saved = savedStateCode();
   if (saved) {
-    $("state").value = saved;
     try {
       const lat = localStorage.getItem(LOC_LAT_KEY);
       const lon = localStorage.getItem(LOC_LON_KEY);
-      if (lat && lon) { $("lat").value = lat; $("lon").value = lon; }
-      else syncStateCoords();
+      if (lat && lon) {
+        // Self-heal corrupted localStorage: if saved coordinates belong to a
+        // completely different region than the saved state (e.g. Odisha GPS
+        // with JK state code), the saved state was poisoned. Auto-correct it!
+        const expectedState = nearestStateByCoords(Number(lat), Number(lon));
+        const [expLat, expLon] = STATE_COORDS[expectedState] || [0, 0];
+        const [savLat, savLon] = STATE_COORDS[saved] || [0, 0];
+        const expDist = Math.pow(Number(lat) - expLat, 2) + Math.pow(Number(lon) - expLon, 2);
+        const savDist = Math.pow(Number(lat) - savLat, 2) + Math.pow(Number(lon) - savLon, 2);
+        if (savDist > expDist * 4) {
+          setStateCode(expectedState);
+          $("lat").value = lat; $("lon").value = lon;
+          return true;
+        }
+        $("lat").value = lat; $("lon").value = lon;
+      } else {
+        syncStateCoords();
+      }
     } catch (_) { syncStateCoords(); }
+    $("state").value = saved;
     return true;
   }
   const seeded = setStateCode(browserLocaleState() || "UP");
