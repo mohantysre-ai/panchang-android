@@ -22,13 +22,18 @@
   const VIEW_BY_TARGET = { calendarPanel: "cal", hero: "today", r: "fest", h: "rashi", toolsScreen: "tools" };
 
   function currentLang() {
-    // #lang mirrors the EFFECTIVE language (user override or state home
-    // language) and is synced before the shell renders — trust it first so
-    // an explicit language pick is honoured everywhere in the shell.
     const mirrored = document.getElementById("lang")?.value;
     if (mirrored && window.I18N?.ui?.[mirrored]) return mirrored;
     const code = document.getElementById("state")?.value;
     return window.I18N?.stateLang?.[code] || "hi";
+  }
+
+  function getActiveFont() {
+    const L = currentLang();
+    const specificFont = window.I18N?.fonts?.[L];
+    return specificFont
+      ? `"${specificFont}", "Segoe UI", system-ui, sans-serif`
+      : '"Segoe UI", system-ui, sans-serif';
   }
 
   function t(key) {
@@ -179,8 +184,9 @@
       btn.innerHTML = `<span class="icon">${icon}</span>${esc(label)}`;
     });
 
+    const activeFont = getActiveFont();
     root.querySelectorAll(".shell-drawer, .shell-bottom, .shell-brand, .shell-nav button").forEach((el) => {
-      el.style.setProperty("font-family", SHELL_FONT, "important");
+      el.style.setProperty("font-family", activeFont, "important");
     });
   }
 

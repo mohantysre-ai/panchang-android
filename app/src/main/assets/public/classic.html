@@ -1128,7 +1128,9 @@ function restoreSavedState() {
         const [savLat, savLon] = STATE_COORDS[saved] || [0, 0];
         const expDist = Math.pow(Number(lat) - expLat, 2) + Math.pow(Number(lon) - expLon, 2);
         const savDist = Math.pow(Number(lat) - savLat, 2) + Math.pow(Number(lon) - savLon, 2);
-        if (savDist > expDist * 4) {
+        if (savDist > expDist * 2) {
+          // Hard wipe poisoned state and manual flag so real GPS location takes over
+          try { localStorage.removeItem(STATE_MANUAL_KEY); } catch (_) {}
           setStateCode(expectedState);
           $("lat").value = lat; $("lon").value = lon;
           return true;
@@ -1194,10 +1196,35 @@ async function detectLocationState() {
  */
 async function refineLocation() {
   if (window.__worldCity) return; // diaspora city mode: GPS must not hijack the view
-  // A manually picked state is never auto-switched. GPS only decides the
-  // region while the choice is still automatic (fresh install / seeded).
-  if (isManualState()) return;
   const detected = await detectLocationState();
+  if (detected) {
+    // If the detected GPS state is genuinely different from what's selected,
+    // and the selection is absurdly far (e.g. JK when user is physically in Odisha),
+    // force correction even if isManualState was inadvertently set.
+    const currentCode = $("state").value;
+    const [curLat, curLon] = STATE_COORDS[currentCode] || [0, 0];
+    const [detLat, detLon] = STATE_COORDS[detected] || [0, 0];
+    const userLat = Number($("lat").value) || detLat;
+    const userLon = Number($("lon").value) || detLon;
+    const curDist = Math.pow(userLat - curLat, 2) + Math.pow(userLon - curLon, 2);
+    const detDist = Math.pow(userLat - detLat, 2) + Math.pow(userLon - detLon, 2);
+
+    if (isManualState() && curDist <= detDist * 3) {
+      // User genuinely selected a neighboring state manually, respect it
+      return;
+    }
+
+    if (detected !== currentCode) {
+      try { localStorage.removeItem(STATE_MANUAL_KEY); } catch (_) {}
+      setStateCode(detected);
+      syncStateCoords();
+      $("lang").value = lang();
+      applyChrome();
+      await loadMonthGrid();
+      await loadAll();
+      return;
+    }
+  }
   const target = detected || savedStateCode() || browserLocaleState() || "UP";
   if (target === $("state").value) return;
   setStateCode(target);
