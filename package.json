@@ -1,6 +1,6 @@
 {
   "name": "panchang-android",
-  "version": "3.4.0",
+  "version": "3.4.2",
   "private": true,
   "description": "Regional Panchang Android app (Capacitor shell). Run `npm install` once before opening in Android Studio so the Capacitor plugins resolve.",
   "scripts": {
