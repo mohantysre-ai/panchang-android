@@ -22,12 +22,13 @@
   const VIEW_BY_TARGET = { calendarPanel: "cal", hero: "today", r: "fest", h: "rashi", toolsScreen: "tools" };
 
   function currentLang() {
+    // #lang mirrors the EFFECTIVE language (user override or state home
+    // language) and is synced before the shell renders — trust it first so
+    // an explicit language pick is honoured everywhere in the shell.
+    const mirrored = document.getElementById("lang")?.value;
+    if (mirrored && window.I18N?.ui?.[mirrored]) return mirrored;
     const code = document.getElementById("state")?.value;
-    return (
-      window.I18N?.stateLang?.[code] ||
-      document.getElementById("lang")?.value ||
-      "hi"
-    );
+    return window.I18N?.stateLang?.[code] || "hi";
   }
 
   function t(key) {
